@@ -8,7 +8,7 @@ class body:
         radius,
         type=None,
         color=None,
-        parent_body=None,
+        parent=None,
         pos=None,
         velocity=None,
         E=0,
@@ -18,7 +18,7 @@ class body:
         eccentricity=0,
         inclination=0,
         longitude_of_ascending_node=0,
-        argument_of_perigee=0,
+        argument_of_periapsis=0,
         true_anomaly=0,
         rotational_period=0,
         tilt=0,
@@ -29,14 +29,14 @@ class body:
         self.radius = radius
         self.type = type
         self.color = color
-        self.parent_body = parent_body
+        self.parent = parent
 
         # Orbital elements
         self.semi_major_axis = semi_major_axis
         self.eccentricity = eccentricity
         self.inclination = inclination
         self.longitude_of_ascending_node = longitude_of_ascending_node
-        self.argument_of_perigee = argument_of_perigee
+        self.argument_of_periapsis = argument_of_periapsis
         self.true_anomaly = true_anomaly
 
         # Rotational elements

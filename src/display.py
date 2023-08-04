@@ -1,6 +1,6 @@
 import pygame
 import numpy as np
-from planet import bodies
+from planet import bodies, sun
 from constants import half_rgb
 
 # Initialize Pygame and set up the display window
@@ -18,7 +18,7 @@ def draw_trail(screen, body, planet_trails, focus_object, SCALE_DIST):
     planet_trails[body.name].append((body.pos[:2] - focus_object.pos[:2]))
 
     # If not displaying full orbits, remove the oldest position if the trail is too long
-    if len(planet_trails[body.name]) > 100:
+    if len(planet_trails[body.name]) > 50:
         planet_trails[body.name].pop(0)
 
     # Draw the trail with a fixed color
@@ -33,6 +33,8 @@ def draw_trail(screen, body, planet_trails, focus_object, SCALE_DIST):
         pygame.draw.line(screen, trail_color, tuple(trail_start), tuple(trail_end))
 
 def draw_orbit(screen, body, focus_object, SCALE_DIST):
+    body_parent = body.parent
+
     focus_pos_pygame = np.array([screen.get_width() // 2, screen.get_height() // 2])
 
     # Generate a set of theta values
@@ -49,6 +51,9 @@ def draw_orbit(screen, body, focus_object, SCALE_DIST):
     x = r * np.cos(theta)
     y = r * np.sin(theta)
 
+    parent_pos_scaled =(body_parent.pos[:2] - focus_object.pos[:2]) * SCALE_DIST
+    focus_pos_pygame = (focus_pos_pygame + parent_pos_scaled).astype(int)
+
     # Scale and translate the coordinates
     x_pygame = (x * SCALE_DIST + focus_pos_pygame[0]).astype(int)
     y_pygame = (y * SCALE_DIST + focus_pos_pygame[1]).astype(int)
@@ -62,10 +67,10 @@ def draw_objects(focus_object, timescale_seconds, SCALE_DIST, star_size_multipli
     screen.fill((0, 0, 0))
 
     for body in bodies:
-        if FULL_ORBITS:
+        if FULL_ORBITS and body.parent != None:
             draw_orbit(screen, body, focus_object, SCALE_DIST)
         else:
-            draw_trail(screen, body, planet_trails, focus_object, SCALE_DIST, FULL_ORBITS)
+            draw_trail(screen, body, planet_trails, focus_object, SCALE_DIST)
 
         # Calculate the planet's position relative to the focus object
         planet_pos_scaled = (body.pos[:2] - focus_object.pos[:2]) * SCALE_DIST
