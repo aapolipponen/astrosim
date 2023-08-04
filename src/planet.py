@@ -14,7 +14,7 @@ sun = body(
     radius=696342 * km,
     color=[255, 223, 0],
     type="star",
-    parent_body=None,
+    parent=None,
 )
 
 earth = body(
@@ -24,7 +24,7 @@ earth = body(
     radius=6371 * km,                                             
     color=[0, 0, 255],                                           
     type="planet",                                                
-    parent_body=sun,                                              
+    parent=sun,                                              
     velocity=[0, -29.78 * km, 0]
 )
 
@@ -35,7 +35,7 @@ mercury = body(
     radius=2439.7 * km,
     color=[245, 245, 220],
     type="planet",
-    parent_body=sun,
+    parent=sun,
     velocity=[0, -47.87 * km, 0]
 ) 
 
@@ -46,7 +46,7 @@ venus = body(
     radius=6051.8 * km,
     color=[255, 255, 0],
     type="planet",
-    parent_body=sun,
+    parent=sun,
     velocity=[0, -35.02 * km, 0]
 )
 
@@ -57,7 +57,7 @@ mars = body(
     radius=3389.5 * km,
     color=[255, 0, 0],
     type="planet",
-    parent_body=sun,
+    parent=sun,
     velocity=[0, -24.07 * km, 0]
 )
 
@@ -68,7 +68,7 @@ jupiter = body(
     radius=69911 * km,
     color=[255, 165, 0],
     type="planet",
-    parent_body=sun,
+    parent=sun,
     velocity=[0, -13.07 * km, 0]
 )
 
@@ -79,7 +79,7 @@ saturn = body(
     radius=58232 * km,
     color=[245, 245, 220],
     type="planet",
-    parent_body=sun,
+    parent=sun,
     velocity=[0, -9.68 * km, 0]
 )
 
@@ -90,7 +90,7 @@ uranus = body(
     radius=25362 * km,
     color=[0, 255, 255],
     type="planet",
-    parent_body=sun,
+    parent=sun,
     velocity=[0, -6.80 * km, 0]
 )
 
@@ -101,7 +101,7 @@ neptune = body(
     radius=24622 * km,
     color=[0, 128, 128],
     type="planet",
-    parent_body=sun,
+    parent=sun,
     velocity=[0, -5.43 * km, 0]
 )
 

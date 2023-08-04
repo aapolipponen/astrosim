@@ -1,5 +1,5 @@
 from planet import sun, earth, bodies
-from constants import day
+from constants import day, hour
 import pygame
 from simulation import run_simulation
 from display import draw_objects

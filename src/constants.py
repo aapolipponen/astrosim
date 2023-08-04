@@ -7,6 +7,7 @@ day = 60 * 60 * 24  # Day in seconds
 AU = 1.496e11  # Astronomical unit in meters
 deg = np.pi / 180  # Degree in radians
 year = 3.154e7  # Year in seconds
+hour = 60 * 60
 kg = 1  # Kilogram in kilograms (already correct)
 km = 1e3  # Kilometer in meters
 
