@@ -1,11 +1,6 @@
 from constants import G, day, AU, year, kg, deg, km, R_earth, M_earth, M_sun, R_sun, deg, yellow, blue, beige, teal, red, orange, cyan
 import numpy as np
-import requests
-import re
-from datetime import datetime
 from body import body
-
-# Planets' data estimated or taken from NASA fact sheets
 
 sun = body(
     name="Sun",
@@ -69,7 +64,7 @@ jupiter = body(
     color=[255, 165, 0],
     type="planet",
     parent=sun,
-    velocity=[0, -13.07 * km, 0]
+    velocity=[0, -12.07 * km, 0]
 )
 
 saturn = body(

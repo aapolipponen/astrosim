@@ -1,4 +1,5 @@
 import numpy as np
+from constants import G
 
 class body:
     def __init__(
@@ -11,8 +12,6 @@ class body:
         parent=None,
         pos=None,
         velocity=None,
-        E=0,
-        L=0,
         semi_major_axis=0,
         semi_minor_axis=0,
         eccentricity=0,
