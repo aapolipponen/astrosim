@@ -3,13 +3,22 @@ import numpy as np
 
 # Constants
 G = 6.67430e-11  # Gravitational constant, in m^3 kg^-1 s^-2
-day = 60 * 60 * 24  # Day in seconds
 AU = 1.496e11  # Astronomical unit in meters
 deg = np.pi / 180  # Degree in radians
-year = 3.154e7  # Year in seconds
-hour = 60 * 60
 kg = 1  # Kilogram in kilograms (already correct)
 km = 1e3  # Kilometer in meters
+
+# Time
+year = 60 * 60 * 24 * 30.437 * 12
+month = 60 * 60 * 24 * 30.437
+week = 60 * 60 * 7
+day = 60 * 60 * 24
+hour = 60 * 60
+minute = 60
+second = 1
+
+# Pressure constant for soft particles
+k = G * 1000
 
 # Physical constants
 c = 2.998e8  # Speed of light in m/s
@@ -45,3 +54,7 @@ def deg(degree):
 
 def half_rgb(rgb_color):
     return tuple(max(int(color / 2), 0) for color in rgb_color)
+
+def km_to_AU(km):
+    # Convert kilometers to astronomical units
+    return km / 1.496e11
