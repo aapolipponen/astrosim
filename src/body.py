@@ -10,6 +10,7 @@ class body:
         type=None,
         color=None,
         parent=None,
+        id=None,
         pos=None,
         velocity=None,
         semi_major_axis=0,
@@ -29,6 +30,7 @@ class body:
         self.type = type
         self.color = color
         self.parent = parent
+        self.id = id
 
         # Orbital elements
         self.semi_major_axis = semi_major_axis

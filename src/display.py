@@ -1,10 +1,11 @@
 import pygame
 import numpy as np
-from planet import bodies, sun
-from constants import half_rgb
+from planet import bodies
+from constants import half_rgb, year, month, day, hour, minute
 
-# Dictionary to hold planet trails
-planet_trails = {body.name: [] for body in bodies}
+def clear_planet_trails():
+    global planet_trails
+    planet_trails = {body.name: [] for body in bodies}
 
 def init_display(screen_width, screen_height):
     # Initialize Pygame and set up the display window
@@ -18,6 +19,63 @@ def get_body_screen_position(body, focus_object, SCALE_DIST, screen):
     body_pos_pygame = focus_pos_pygame + body_pos_scaled
     return body_pos_pygame
 
+def convert_seconds_to_human_readable(seconds, paused):
+    if paused:
+        return 'PAUSED'
+    
+    # Determine if input is negative
+    is_negative = seconds < 0
+    seconds = abs(seconds)  # Use absolute value for calculations
+
+    years, seconds = divmod(seconds, year)
+    months, seconds = divmod(seconds, month)
+    days, seconds = divmod(seconds, day)
+    hours, seconds = divmod(seconds, hour)
+    minutes, seconds = divmod(seconds, minute)
+
+    # Create human readable string
+    human_readable = ""
+    if years > 0:
+        human_readable += f"{int(years)} years "
+    if months > 0:
+        human_readable += f"{int(months)} months "
+    if days > 0:
+        human_readable += f"{int(days)} days "
+    if hours > 0:
+        human_readable += f"{int(hours)} hours "
+    if minutes > 0:
+        human_readable += f"{int(minutes)} minutes "
+    if seconds > 0:
+        human_readable += f"{int(seconds)} seconds "
+        
+    # If input was negative, add negative sign to output
+    if is_negative:
+        human_readable = "-" + human_readable
+
+    # If all values are zero, output should be 'PAUSED'
+    if human_readable.strip() == "":
+        return 'PAUSED'
+    else:
+        return human_readable.strip()
+        
+def display_time(timescale_seconds, screen, paused):
+    try:
+        human_readable_time = convert_seconds_to_human_readable(timescale_seconds, paused)
+        font = pygame.font.Font(None, 36)
+        text = font.render("Timestep: " + human_readable_time, 1, (255, 255, 255))
+        
+        text_rect = text.get_rect()
+        screen_rect = screen.get_rect()
+
+        text_rect.bottomleft = screen_rect.bottomleft  # Place the text in the bottom-left corner
+
+        screen.blit(text, text_rect)
+    except Exception as e:
+        if "termux" in str(e).lower():
+            print("Running on Termux, skipping text rendering!")
+        else:
+            raise e
+                
 def draw_trail(screen, body, planet_trails, focus_object, SCALE_DIST):
     focus_pos_pygame = np.array([screen.get_width() // 2, screen.get_height() // 2])
 
@@ -80,8 +138,8 @@ def draw_orbit(screen, body, focus_object, SCALE_DIST):
     # Draw periapsis and apoapsis
     pygame.draw.circle(screen, (255, 0, 0), (x_pygame[np.argmin(r)], y_pygame[np.argmin(r)]), 1)  # Periapsis
     pygame.draw.circle(screen, (255, 0, 255), (x_pygame[np.argmax(r)], y_pygame[np.argmax(r)]), 1)  # Apoapsis
-
-def draw_objects(focus_object, SCALE_DIST, star_size_multiplier, planet_size_multiplier, moon_size_multiplier, FULL_ORBITS, screen):
+    
+def draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, screen):
     focus_pos_pygame = np.array([screen.get_width() // 2, screen.get_height() // 2])
     screen.fill((0, 0, 0))
 
@@ -95,21 +153,8 @@ def draw_objects(focus_object, SCALE_DIST, star_size_multiplier, planet_size_mul
         planet_pos_scaled = (body.pos[:2] - focus_object.pos[:2]) * SCALE_DIST
         planet_pos_pygame = focus_pos_pygame + planet_pos_scaled
 
-        # Choose the size multiplier based on the object type
-        if body.type == 'star':
-            size_multiplier = star_size_multiplier
-        elif body.type == 'planet':
-            size_multiplier = planet_size_multiplier
-        elif body.type == 'moon':
-            size_multiplier = moon_size_multiplier
-        else:
-            size_multiplier = 1  # Default multiplier
-
         # Calculate the planet's radius in pixels
-        planet_radius = max(1, int(body.radius * SCALE_DIST * size_multiplier))
+        planet_radius = max(1, int(body.radius * SCALE_DIST))
 
         # Draw the planet
         pygame.draw.circle(screen, body.color, tuple(planet_pos_pygame.astype(int)), planet_radius)
-
-    pygame.display.flip()
-    pygame.time.wait(10)

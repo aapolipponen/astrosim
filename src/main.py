@@ -1,120 +1,105 @@
-from planet import sun, earth, bodies
-from constants import day, hour
 import pygame
-from pygame.locals import MOUSEBUTTONDOWN, MOUSEWHEEL
-from simulation import run_simulation
-from display import draw_objects, init_display, get_body_screen_position
 import numpy as np
+from planet import bodies, sun, mercury, venus, earth, mars, jupiter, saturn, uranus, neptune
+from constants import year, month, week ,day, hour, minute, second, AU
+from simulation import run_simulation
+from display import draw_objects, display_time, init_display, clear_planet_trails
+from request import get_body_parameters
+from utilities import is_mouse_over_body, change_timestep, zoom, change_focus
+import cProfile
 
-def is_mouse_over_object(mouse_pos, body, focus_object, SCALE_DIST, screen, click_multiplier=5):
-    body_pos_pygame = get_body_screen_position(body, focus_object, SCALE_DIST, screen)
-
-    # Calculate approximate radius on screen using the provided multiplier
-    body_radius_screen = body.radius * SCALE_DIST * click_multiplier
-
-    # Check if mouse position is within the bounding box of the body
-    return (body_pos_pygame[0] - body_radius_screen <= mouse_pos[0] <= body_pos_pygame[0] + body_radius_screen) and \
-           (body_pos_pygame[1] - body_radius_screen <= mouse_pos[1] <= body_pos_pygame[1] + body_radius_screen)
-
-def change_timestep(event, timestep_seconds, integration_method):
-    adjust_amount = 1.4  # This can be changed according to how large of an adjustment you want each time
-    fine_adjust_amount = 1.1  # This can be changed to how fine of an adjustment you want each time
-    pause_threshold = 0.005  # The threshold for pause; timescale within (-pause_threshold, pause_threshold) means pause
-
-    if pygame.key.get_mods() & pygame.KMOD_CTRL:  # Check if CTRL key is held down
-        adjust_amount = fine_adjust_amount  # Use finer adjustment if CTRL is held down
-
-    if pygame.key.get_mods() & pygame.KMOD_SHIFT:
-        if event.y > 0:  # Scroll up
-            if timestep_seconds < 0:
-                timestep_seconds /= adjust_amount  # Decrease absolute value of negative timescale (going towards zero)
-                if -pause_threshold < timestep_seconds < 0:
-                    timestep_seconds = 0  # Stop time if within pause threshold
-                    print("Time paused (from negative to zero)")
-            else:
-                if timestep_seconds != 0:
-                    timestep_seconds *= adjust_amount  # Increase timescale
-                    print("Time scale increased to", timestep_seconds)
-                else:
-                    timestep_seconds = pause_threshold  # Start time forward if paused
-                    print("Time started moving forward from pause")
-
-        elif event.y < 0:  # Scroll down
-            if "leapfrog" in integration_method.lower():
-                if timestep_seconds > 0:
-                    timestep_seconds /= adjust_amount  # Decrease timescale (going towards zero)
-                    if 0 < timestep_seconds < pause_threshold:
-                        timestep_seconds = 0  # Stop time if within pause threshold
-                        print("Time paused (from positive to zero)")
-                else:
-                    if timestep_seconds != 0:
-                        timestep_seconds *= adjust_amount  # Increase absolute value of negative timescale (going more backwards)
-                        print("Time scale increased in negative direction to", timestep_seconds)
-                    else:
-                        timestep_seconds = -pause_threshold  # Start time backwards if paused
-                        print("Time started moving backwards from pause")
-
-    return timestep_seconds
+debug = False
+profile_simulation = False
 
 focus_object = sun
+
 integration_method = 'rk4'
+
+get_real_parameters = False # Get real time body positions with 1 minute accuracy positions for objects from the Nasa Horizons API
+
+post_newtonian_correction = True
+
+use_barnes_hut = True
+
 FULL_ORBITS = True
+
+timestep_seconds = second * 15 # Define the initial timestep value in seconds
+
+SCALE_DIST = 1e-10 # Calculate scaling factors for size and distance
+
+ZOOM_SPEED = 1.1  # Adjust this value to increase/decrease the zoom speed
 
 screen_width = 800
 screen_height = 800
 
-star_size_multiplier = 1
-planet_size_multiplier = 100
-moon_size_multiplier = 1
+if get_real_parameters:
+    for body in bodies:
+        get_body_parameters(body)
 
-# Define the initial / default timestep value in seconds
-timestep_seconds = day
-
-zoom_factor = 1.2
-
-# Calculate scaling factors for size and distance
-SCALE_DIST = 7.5e-11  # Scale (1 meter = SCALE_DIST pixels)
-
+if debug:
+    for body in bodies:
+        print(body.name, body.pos, body.vel)
+        
 screen = init_display(screen_width, screen_height)
 
+clear_planet_trails()
+
+hovered_body_name = None
+mouse_pos = pygame.mouse.get_pos()  # get the current mouse position
+
+if profile_simulation:
+    def profile(profile_x_times):
+        for i in range(profile_x_times):
+            run_simulation(timestep_seconds, integration_method, post_newtonian_correction)
+            profile_x_times-=1
+
+    cProfile.run('profile(500)')
+    exit()
+
+# Main simulation loop
 running = True
+paused = False
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        elif event.type == MOUSEWHEEL:
-            if not (pygame.key.get_mods() & pygame.KMOD_SHIFT):
-                if event.y > 0:  # Scroll up
-                    SCALE_DIST *= zoom_factor  # Zoom in
-                elif event.y < 0:  # Scroll down
-                    SCALE_DIST /= zoom_factor  # Zoom out
-            else:
-                # Update timescale using function
-                timestep_seconds = change_timestep(event, timestep_seconds, integration_method)
-        elif event.type == MOUSEBUTTONDOWN:
-            mouse_pos = pygame.mouse.get_pos()
-            clicked_body = None
-
-            # Print all bodies' Pygame screen positions
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if pygame.key.get_pressed()[pygame.K_LSHIFT] or pygame.key.get_pressed()[pygame.K_RSHIFT] or pygame.key.get_mods() & pygame.KMOD_CTRL:  # shift is pressed
+                fine_adjust_enabled = pygame.key.get_mods() & pygame.KMOD_CTRL
+                if event.button == 4:  # scroll up
+                    timestep_seconds = change_timestep(timestep_seconds, 'up', fine_adjust_enabled, integration_method)
+                elif event.button == 5:  # scroll down
+                    timestep_seconds = change_timestep(timestep_seconds, 'down', fine_adjust_enabled, integration_method)
+            elif event.button == 4:  # scroll up
+                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'up')
+            elif event.button == 5:  # scroll down
+                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'down')
+            elif event.button == 1:
+                focus_object = change_focus(bodies, SCALE_DIST, focus_object)
+        elif event.type == pygame.KEYDOWN:
+            # Space key pauses the game
+            if event.key == pygame.K_SPACE:
+                paused = not paused  # Toggle paused state
+    
+    if not paused:        
+        for body in bodies:
+            run_simulation(timestep_seconds, integration_method, post_newtonian_correction)
+        if debug:
             for body in bodies:
-                body_pygame_pos = get_body_screen_position(body, focus_object, SCALE_DIST, screen)
-                print(f"{body.name}'s Pygame position: {body_pygame_pos}")
+                print(body.name, body.pos, body.vel)
+    
+    mouse_pos = np.array(pygame.mouse.get_pos())  # Convert to numpy array for compatibility with our function
 
-            for body in bodies:
-                if is_mouse_over_object(mouse_pos, body, focus_object, SCALE_DIST, screen):
-                    focus_object = body
-                    clicked_body = body.name
-                    break
+    for body in bodies:
+        if is_mouse_over_body(mouse_pos, body, focus_object, SCALE_DIST, screen):
+            font = pygame.font.Font(None, 36)
+            text_surface = font.render(body.name, True, (255, 255, 255))  # White color, adjust as needed
+            screen.blit(text_surface, (mouse_pos[0] + 10, mouse_pos[1] + 10))  # Offset a bit for better visibility    
 
-            # Debug message
-            if clicked_body:
-                print(f"Clicked at {mouse_pos}. Focus changed to: {clicked_body}.")
-            else:
-                print(f"Clicked at {mouse_pos}. No body selected.")
-
-            for body in bodies:
-                run_simulation(timestep_seconds, integration_method)
-
-    draw_objects(focus_object, SCALE_DIST, star_size_multiplier, planet_size_multiplier, moon_size_multiplier, FULL_ORBITS, screen)
-
+    draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, screen)
+    display_time(timestep_seconds, screen, paused)
+    
+    pygame.display.flip()
+    pygame.time.wait(10)
+     
 pygame.quit()
