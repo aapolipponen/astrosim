@@ -3,10 +3,39 @@ import numpy as np
 from planet import bodies, sun, mercury, venus, earth, mars, jupiter, saturn, uranus, neptune
 from constants import year, month, week ,day, hour, minute, second, AU
 from simulation import run_simulation
-from display import draw_objects, display_time, init_display, clear_planet_trails
+from display import draw_objects, display_time, init_display, clear_body_trails
 from request import get_body_parameters
 from utilities import is_mouse_over_body, change_timestep, zoom, change_focus
 import cProfile
+import threading
+
+def custom_repl(context):
+    """
+    Custom REPL for interactive star management.
+    
+    Parameters:
+    - context: Dictionary containing the local context in which to execute commands.
+    """
+    while True:
+        try:
+            # Read
+            cmd = input("StarConsole >>> ")
+            
+            if cmd.strip() == "exit":
+                print("Exiting StarConsole.")
+                break
+
+            # Evaluate (for commands that return a value like variable access)
+            try:
+                result = eval(cmd, context)
+                if result is not None:
+                    print(result)
+            except:
+                # If evaluation failed, then try exec (for statements that don't return a value)
+                exec(cmd, context)
+        
+        except Exception as e:
+            print(f"Error: {e}")
 
 debug = False
 profile_simulation = False
@@ -22,8 +51,9 @@ post_newtonian_correction = True
 use_barnes_hut = True
 
 FULL_ORBITS = True
+draw_trail_for_empty = False
 
-timestep_seconds = second * 15 # Define the initial timestep value in seconds
+timestep_seconds = hour # Define the initial timestep value in seconds
 
 SCALE_DIST = 1e-10 # Calculate scaling factors for size and distance
 
@@ -42,7 +72,7 @@ if debug:
         
 screen = init_display(screen_width, screen_height)
 
-clear_planet_trails()
+clear_body_trails()
 
 hovered_body_name = None
 mouse_pos = pygame.mouse.get_pos()  # get the current mouse position
@@ -55,6 +85,13 @@ if profile_simulation:
 
     cProfile.run('profile(500)')
     exit()
+
+def start_repl():
+    custom_repl(locals())
+
+# Start the REPL on a separate thread
+repl_thread = threading.Thread(target=start_repl)
+repl_thread.start()
 
 # Main simulation loop
 running = True
@@ -96,7 +133,7 @@ while running:
             text_surface = font.render(body.name, True, (255, 255, 255))  # White color, adjust as needed
             screen.blit(text_surface, (mouse_pos[0] + 10, mouse_pos[1] + 10))  # Offset a bit for better visibility    
 
-    draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, screen)
+    draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen)
     display_time(timestep_seconds, screen, paused)
     
     pygame.display.flip()

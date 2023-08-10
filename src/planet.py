@@ -1,14 +1,19 @@
-from constants import G, day, AU, year, kg, deg, km, R_earth, M_earth, M_sun, R_sun, deg, yellow, blue, beige, teal, red, orange, cyan
+from constants import AU, km, SUN_AGE_SECONDS, SOLAR_MASS
 import numpy as np
-from body import body
+from body import body, Star, STAR_COLORS
 
-sun = body(
+sun = Star(
     name="Sun",
-    mass=1.989 * 10**30,
-    radius=696342 * km,
-    color=[255, 223, 0],
+    pos=[0.0, 0.0, 0.0],  
+    mass=SOLAR_MASS, 
+    radius=696342 * km, 
+    color=STAR_COLORS["G"],  # Using the dictionary for color
     type="star",
+    luminosity=3.828e26, 
+    spectral_type="G2V", 
+    velocity=[0.0, 0.0, 0.0],
     id=10,
+    age=SUN_AGE_SECONDS  # Adding the Sun's age
 )
 
 mercury = body(
@@ -229,4 +234,4 @@ triton = body(
 )
 
 bodies = [sun, earth, mercury, venus, mars, jupiter, saturn, uranus, neptune]
-bodies.extend([moon, io, europa, ganymede, callisto, dione, rhea, tethys, triton])
+#bodies.extend([moon, io, europa, ganymede, callisto, dione, rhea, tethys, triton])

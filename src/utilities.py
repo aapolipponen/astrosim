@@ -1,6 +1,6 @@
 import numpy as np
 import pygame
-from display import clear_planet_trails
+from display import clear_body_trails
 
 def is_mouse_over_body(mouse_pos, body, focus_object, SCALE_DIST, screen):
     focus_pos_pygame = np.array([screen.get_width() // 2, screen.get_height() // 2])
@@ -48,7 +48,7 @@ def adjust_timestep(timestep_seconds, adjust_amount, direction):
 
 def change_timestep(timestep_seconds, direction, fine_adjust, integration_method=""):    
     leapfrog = "leapfrog" in integration_method.lower()
-    adjust_amount = 5 if fine_adjust else 60  # adjust these values as necessary
+    adjust_amount = 60 if fine_adjust else 60*60 # adjust these values as necessary
 
     if direction == 'up':
         timestep_seconds = adjust_timestep(timestep_seconds, adjust_amount, direction)
@@ -95,16 +95,16 @@ def change_focus(bodies, SCALE_DIST, focus_object):
             closest_other = find_closest_body(pos, others, SCALE_DIST, focus_object)
             if closest_other is not None and closest_other != focus_object:  # Check if focus_object changed
                 focus_object = closest_other
-                clear_planet_trails()
+                clear_body_trails()
 
         else:
             if closest_moon != focus_object:  # Check if focus_object changed
                 focus_object = closest_moon
-                clear_planet_trails()
+                clear_body_trails()
 
     else:
         if closest_planet != focus_object:  # Check if focus_object changed
             focus_object = closest_planet
-            clear_planet_trails()
+            clear_body_trails()
 
     return focus_object
