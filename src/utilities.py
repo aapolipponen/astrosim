@@ -78,33 +78,16 @@ def zoom(SCALE_DIST, ZOOM_FACTOR, direction):
 def change_focus(bodies, SCALE_DIST, focus_object):
     pos = pygame.mouse.get_pos()
 
-    # Segregate the bodies into planets, moons, and others (with no type specified)
-    planets = [body for body in bodies if body.type == "planet"]
-    moons = [body for body in bodies if body.type == "moon"]
-    others = [body for body in bodies if not body.type]
-
-    # First, find the closest planet
-    closest_planet = find_closest_body(pos, planets, SCALE_DIST, focus_object)
-
-    # If no planet is found, then find the closest moon
-    if closest_planet is None:
-        closest_moon = find_closest_body(pos, moons, SCALE_DIST, focus_object)
-
-        # If no moon is found, then find the closest other body
-        if closest_moon is None:
-            closest_other = find_closest_body(pos, others, SCALE_DIST, focus_object)
-            if closest_other is not None and closest_other != focus_object:  # Check if focus_object changed
-                focus_object = closest_other
-                clear_body_trails()
-
-        else:
-            if closest_moon != focus_object:  # Check if focus_object changed
-                focus_object = closest_moon
-                clear_body_trails()
-
-    else:
-        if closest_planet != focus_object:  # Check if focus_object changed
-            focus_object = closest_planet
+    # Define the order of search: stars, planets, moons, others
+    body_types = ['star', 'planet', 'moon', None]
+    
+    for body_type in body_types:
+        relevant_bodies = [body for body in bodies if body.type == body_type]
+        closest_body = find_closest_body(pos, relevant_bodies, SCALE_DIST, focus_object)
+        
+        if closest_body is not None and closest_body != focus_object:
+            focus_object = closest_body
             clear_body_trails()
+            break
 
     return focus_object
