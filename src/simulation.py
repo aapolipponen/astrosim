@@ -1,7 +1,6 @@
 from constants import G, c
 from planet import bodies
 import numpy as np
-from numba import jit
 
 def calculate_net_force(target_body, post_newtonian_correction):
     net_force = np.array([0.0, 0.0, 0.0])
@@ -159,9 +158,9 @@ def get_integrator(method):
 def run_simulation(timescale_seconds, method, post_newtonian_correction):
     integrator = get_integrator(method)
     for body in bodies:
-        if body.parent is not None:
-            calculate_orbital_parameters(body)
         integrator(body, timescale_seconds, post_newtonian_correction)
+        if body.parent:
+            calculate_orbital_parameters(body)
 
 def calculate_orbital_position(body):
     # Get the position of the moon relative to its parent planet

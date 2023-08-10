@@ -8,17 +8,19 @@ deg = np.pi / 180  # Degree in radians
 kg = 1  # Kilogram in kilograms (already correct)
 km = 1e3  # Kilometer in meters
 
+# Mass equivalents
+
+SOLAR_MASS = 1.989e30 * kg  # in kilograms
+
 # Time
-year = 60 * 60 * 24 * 30.437 * 12
-month = 60 * 60 * 24 * 30.437
+SUN_AGE_SECONDS = 4.6e9 * 365.25 * 24 * 60 * 60  # 4.6 billion years in seconds
+year = 60 * 60 * 24 * 30.4375 * 12
+month = 60 * 60 * 24 * 30.4375
 week = 60 * 60 * 7
 day = 60 * 60 * 24
 hour = 60 * 60
 minute = 60
 second = 1
-
-# Pressure constant for soft particles
-k = G * 1000
 
 # Physical constants
 c = 2.998e8  # Speed of light in m/s
