@@ -1,0 +1,117 @@
+{
+    "bodies": [
+      {
+        "name": "Sun",
+        "mass": 1.989e30,
+        "radius": 696342000,
+        "color": [255, 215, 0],
+        "type": "star",
+        "pos": [0.0, 0.0, 0.0],
+        "velocity": [0.0, 0.0, 0.0],
+        "id": 10,
+        "luminosity": 3.828e26,
+        "spectral_type": "G2V",
+        "age": 4600000000,
+        "bodies": []
+      },
+      {
+        "name": "Mercury",
+        "mass": 3.3011e23,
+        "radius": 2439700,
+        "color": [245, 245, 220],
+        "type": "planet",
+        "pos": [57910000, 0.0, 0.0],
+        "velocity": [0.0, -47900, 0.0],
+        "id": 199
+      },
+      {
+        "name": "Venus",
+        "mass": 4.8675e24,
+        "radius": 6051800,
+        "color": [255, 255, 0],
+        "type": "planet",
+        "pos": [108200000, 0.0, 0.0],
+        "velocity": [0.0, -35020, 0.0],
+        "id": 299,
+        "atmosphere": {
+          "composition": {
+            "CO2": 0.965,
+            "N2": 0.035
+          },
+          "pressure_surface": 9200000,
+          "temperature_surface": 737,
+          "albedo": 0.77
+        }
+      },
+      {
+        "name": "Earth",
+        "mass": 5.97219e24,
+        "radius": 6371000,
+        "color": [0, 0, 255],
+        "type": "planet",
+        "pos": [149600000, 0.0, 0.0],
+        "velocity": [0.0, -29780, 0.0],
+        "id": 399,
+        "atmosphere": {
+          "composition": {
+            "N2": 0.78,
+            "O2": 0.21,
+            "Ar": 0.01
+          },
+          "pressure_surface": 101325,
+          "temperature_surface": 288,
+          "albedo": 0.3
+        }
+      },
+      {
+        "name": "Mars",
+        "mass": 6.4171e23,
+        "radius": 3389500,
+        "color": [255, 0, 0],
+        "type": "planet",
+        "pos": [227940000, 0.0, 0.0],
+        "velocity": [0.0, -24070, 0.0],
+        "id": 499
+      },
+      {
+        "name": "Jupiter",
+        "mass": 1.8982e27,
+        "radius": 69911000,
+        "color": [255, 165, 0],
+        "type": "planet",
+        "pos": [778330000, 0.0, 0.0],
+        "velocity": [0.0, -13070, 0.0],
+        "id": 599
+      },
+      {
+        "name": "Saturn",
+        "mass": 5.6834e26,
+        "radius": 58232000,
+        "color": [245, 245, 220],
+        "type": "planet",
+        "pos": [1433400000, 0.0, 0.0],
+        "velocity": [0.0, -9680, 0.0],
+        "id": 699
+      },
+      {
+        "name": "Uranus",
+        "mass": 8.6810e25,
+        "radius": 25362000,
+        "color": [0, 255, 255],
+        "type": "planet",
+        "pos": [2871200000, 0.0, 0.0],
+        "velocity": [0.0, -6800, 0.0],
+        "id": 799
+      },
+      {
+        "name": "Neptune",
+        "mass": 1.02413e26,
+        "radius": 24622000,
+        "color": [0, 128, 128],
+        "type": "planet",
+        "pos": [4495100000, 0.0, 0.0],
+        "velocity": [0.0, -5430, 0.0],
+        "id": 899
+      }
+    ]
+}  

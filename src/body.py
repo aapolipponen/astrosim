@@ -59,14 +59,18 @@ class body:
     def surface_gravity(self):
         return G * self.mass / (self.radius ** 2)
 
+# Planet Class
 class Planet(body):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, Atmosphere=None, *args, **kwargs):
+        self.atmosphere = Atmosphere
+        
+        # Check if the "Atmosphere" keyword argument exists in kwargs and remove it
+        if "Atmosphere" in kwargs:
+            del kwargs["Atmosphere"]
+        
+        # Call the parent (body) class's __init__ method
         super().__init__(*args, **kwargs)
-        self.atmosphere = None
-
-    def add_atmosphere(self, atmosphere):
-        self.atmosphere = atmosphere
-
+    
 # Orbital decay or something visual?
 class Atmosphere:
     def __init__(

@@ -1,6 +1,6 @@
 import pygame
 import numpy as np
-from planet import bodies, sun, mercury, venus, earth, mars
+from load_scenario import load_scenario
 from constants import YEAR, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND
 from simulation import run_simulation
 from display import draw_objects, display_time, init_display, clear_body_trails
@@ -11,12 +11,16 @@ import cProfile
 import threading
 import os
 
+# Load the bodies from a JSON scenario
+scenario_filename = "default_solar_system.json"
+bodies = load_scenario(scenario_filename)
+
+focus_name = "Mars"
+focus_object = next((body for body in bodies if body.name == focus_name), focus_object)
 
 debug = False
 
 profile_simulation = False
-
-focus_object = sun
 
 integration_method = 'rk4'
 
