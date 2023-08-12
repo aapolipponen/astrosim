@@ -1,4 +1,4 @@
-from constants import G, c
+from constants import G, C
 from planet import bodies
 import numpy as np
 
@@ -12,7 +12,7 @@ def calculate_net_force(target_body, post_newtonian_correction):
 
             # 1st post-Newtonian correction from GR
             if post_newtonian_correction:
-                correction_force_mag = (G**2 / c**2) * target_body.mass * body.mass * (target_body.mass + body.mass) / r_mag**3
+                correction_force_mag = (G**2 / C**2) * target_body.mass * body.mass * (target_body.mass + body.mass) / r_mag**3
                 force_mag += correction_force_mag
 
             force = force_mag * r / r_mag
