@@ -1,43 +1,19 @@
 import pygame
 import numpy as np
-from planet import bodies, sun, mercury, venus, earth, mars, jupiter, saturn, uranus, neptune
-from constants import year, month, week ,day, hour, minute, second, AU
+from planet import bodies, sun, mercury, venus, earth, mars
+from constants import YEAR, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND
 from simulation import run_simulation
 from display import draw_objects, display_time, init_display, clear_body_trails
 from request import get_body_parameters
 from utilities import is_mouse_over_body, change_timestep, zoom, change_focus
+from starconsole import custom_repl
 import cProfile
 import threading
+import os
 
-def custom_repl(context):
-    """
-    Custom REPL for interactive star management.
-    
-    Parameters:
-    - context: Dictionary containing the local context in which to execute commands.
-    """
-    while True:
-        try:
-            # Read
-            cmd = input("StarConsole >>> ")
-            
-            if cmd.strip() == "exit":
-                print("Exiting StarConsole.")
-                break
-
-            # Evaluate (for commands that return a value like variable access)
-            try:
-                result = eval(cmd, context)
-                if result is not None:
-                    print(result)
-            except:
-                # If evaluation failed, then try exec (for statements that don't return a value)
-                exec(cmd, context)
-        
-        except Exception as e:
-            print(f"Error: {e}")
 
 debug = False
+
 profile_simulation = False
 
 focus_object = sun
@@ -46,21 +22,20 @@ integration_method = 'rk4'
 
 get_real_parameters = False # Get real time body positions with 1 minute accuracy positions for objects from the Nasa Horizons API
 
-post_newtonian_correction = True
-
-use_barnes_hut = True
+post_newtonian_correction = False
 
 FULL_ORBITS = True
+
 draw_trail_for_empty = False
 
-timestep_seconds = hour # Define the initial timestep value in seconds
+timestep_seconds = HOUR # Define the initial timestep value in seconds
 
 SCALE_DIST = 1e-10 # Calculate scaling factors for size and distance
 
 ZOOM_SPEED = 1.1  # Adjust this value to increase/decrease the zoom speed
 
-screen_width = 800
-screen_height = 800
+screen_width = 8000
+screen_height = 8000
 
 if get_real_parameters:
     for body in bodies:
@@ -117,7 +92,21 @@ while running:
             # Space key pauses the game
             if event.key == pygame.K_SPACE:
                 paused = not paused  # Toggle paused state
-    
+            elif event.key == pygame.K_F12:
+                # Create a folder if it doesn't exist
+                if not os.path.exists("screenshots"):
+                    os.mkdir("screenshots")
+                    screenshot_folder = "screenshots"
+                    screenshot_name = os.path.join(screenshot_folder, "screenshot.png")
+
+                    if os.path.exists(screenshot_name):
+                        index = 1
+                        while os.path.exists(os.path.join(screenshot_folder, f"screenshot_{index}.png")):
+                            index += 1
+                        screenshot_name = os.path.join(screenshot_folder, f"screenshot_{index}.png")
+
+                    pygame.image.save(screen, screenshot_name)
+
     if not paused:        
         for body in bodies:
             run_simulation(timestep_seconds, integration_method, post_newtonian_correction)
@@ -138,5 +127,5 @@ while running:
     
     pygame.display.flip()
     pygame.time.wait(10)
-     
+    
 pygame.quit()

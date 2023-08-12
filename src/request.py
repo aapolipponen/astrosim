@@ -1,7 +1,7 @@
 import requests
 import numpy as np
 from datetime import datetime, timedelta
-from constants import km_to_AU, km
+from constants import KM_TO_AU, KM_TO_M
 from planet import bodies
 
 def get_pos_vel(body_id, center_id, start_date, end_date, step_size):

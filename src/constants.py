@@ -1,62 +1,80 @@
-# constants.py
 import numpy as np
 
-# Constants
-G = 6.67430e-11  # Gravitational constant, in m^3 kg^-1 s^-2
-AU = 1.496e11  # Astronomical unit in meters
-deg = np.pi / 180  # Degree in radians
-kg = 1  # Kilogram in kilograms (already correct)
-km = 1e3  # Kilometer in meters
+# ====== Conversion Factors ======
+KM_TO_M = 1e3
+M_TO_KM = 1e-3
+KG_TO_G = 1e3
+G_TO_KG = 1e-3
 
-# Mass equivalents
+# ====== Time Units in Seconds ======
+SECOND = 1
+MINUTE = 60 * SECOND
+HOUR = 60 * MINUTE
+DAY = 24 * HOUR
+WEEK = 7 * DAY
+MONTH = 30.4375 * DAY  # Average month length
+YEAR = 12 * MONTH
+SUN_AGE_SECONDS = 4.6e9 * YEAR
 
-SOLAR_MASS = 1.989e30 * kg  # in kilograms
+# ====== Physical Constants ======
+G = 6.67430e-11  # Gravitational constant, m^3 kg^-1 s^-2
+C = 2.998e8  # Speed of light, m/s
+H = 6.626e-34  # Planck's constant, Js
+K_B = 1.381e-23  # Boltzmann constant, J/K
+ELECTRON_CHARGE = -1.602e-19  # Coulombs
+PROTON_MASS = 1.673e-27  # kg
 
-# Time
-SUN_AGE_SECONDS = 4.6e9 * 365.25 * 24 * 60 * 60  # 4.6 billion years in seconds
-year = 60 * 60 * 24 * 30.4375 * 12
-month = 60 * 60 * 24 * 30.4375
-week = 60 * 60 * 7
-day = 60 * 60 * 24
-hour = 60 * 60
-minute = 60
-second = 1
+# ====== Astronomical Constants & Units ======
+AU = 1.496e11  # Astronomical unit, meters
+M_TO_AU = 1 / AU
+AU_TO_M = AU
+KM_TO_AU = KM_TO_M * M_TO_AU
+LIGHT_YEAR = 9.461e15  # Distance light travels in a year in meters
+PARSEC = 3.086e16  # Parsec in meters
+LUNAR_DISTANCE = 3.844e8  # Average distance from Earth to Moon in meters
+SOLAR_MASS = 1.989e30  # kg
+MU_SUN = G * SOLAR_MASS
 
-# Physical constants
-c = 2.998e8  # Speed of light in m/s
-h = 6.626e-34  # Planck's constant in Js
-k_B = 1.381e-23  # Boltzmann constant in J/K
+R_EARTH = 6.371e6  # Earth radius, meters
+M_EARTH = 5.972e24  # Earth mass, kg
+R_SUN = 6.9634e8  # Sun radius, meters
+M_SUN = 1.989e30  # Sun mass, kg
 
-# Astronomical constants
-R_earth = 6.371e6  # Earth radius in meters
-M_earth = 5.972e24  # Earth mass in kg
-R_sun = 6.9634e8  # Sun radius in meters
-M_sun = 1.989e30  # Sun mass in kg
+# ====== Mathematical Constants ======
+DEG_TO_RAD = np.pi / 180
+GOLDEN_RATIO = (1 + 5**0.5) / 2
+EULERS_NUMBER = np.exp(1)
 
-# Conversion factors
-km_to_m = 1e3  # Kilometers to meters
-m_to_km = 1e-3  # Meters to kilometers
-AU_to_m = AU  # Astronomical units to meters
-m_to_AU = 1/AU  # Meters to astronomical units
-kg_to_g = 1e3  # Kilograms to grams
-g_to_kg = 1e-3  # Grams to kilograms
+# ====== Colors ======
+YELLOW = [255, 255, 0]
+BLUE = [0, 0, 255]
+BEIGE = [245, 245, 220]
+RED = [255, 0, 0]
+ORANGE = [255, 165, 0]
+CYAN = [0, 255, 255]
+TEAL = [0, 128, 128]
 
-# RGB Colors
-yellow = [255, 255, 0]
-blue = [0, 0, 255]
-beige = [245, 245, 220]
-red = [255, 0, 0]
-orange = [255, 165, 0]
-cyan = [0, 255, 255]
-teal = [0, 128, 128]
-
-# Functions
-def deg(degree):
-    return degree * np.pi / 180
+# ====== Utility Functions ======
+def deg_to_rad(degree):
+    """Converts degrees to radians."""
+    return degree * DEG_TO_RAD
 
 def half_rgb(rgb_color):
+    """Returns half of the RGB color values."""
     return tuple(max(int(color / 2), 0) for color in rgb_color)
 
-def km_to_AU(km):
-    # Convert kilometers to astronomical units
-    return km / 1.496e11
+def celsius_to_fahrenheit(temp_c):
+    """Convert Celsius to Fahrenheit."""
+    return (temp_c * 9/5) + 32
+
+def fahrenheit_to_celsius(temp_f):
+    """Convert Fahrenheit to Celsius."""
+    return (temp_f - 32) * 5/9
+
+def escape_velocity(mass, radius):
+    """Calculate escape velocity given mass (kg) and radius (m) of a celestial body."""
+    return np.sqrt(2 * G * mass / radius)
+
+def gravitational_force(m1, m2, r):
+    """Calculate gravitational force between two masses (kg) separated by distance r (m)."""
+    return G * m1 * m2 / r**2
