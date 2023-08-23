@@ -1,6 +1,7 @@
 import pygame
 import numpy as np
-from load_scenario import load_scenario
+#from load_scenario import load_scenario
+from planet import bodies, mars, sun, earth
 from constants import YEAR, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND
 from simulation import run_simulation
 from display import draw_objects, display_time, init_display, clear_body_trails
@@ -11,14 +12,9 @@ import cProfile
 import threading
 import os
 
-# Load the bodies from a JSON scenario
-scenario_filename = "default_solar_system.json"
-bodies = load_scenario(scenario_filename)
+focus_object = earth
 
-focus_name = "Mars"
-focus_object = next((body for body in bodies if body.name == focus_name), focus_object)
-
-debug = False
+debug = True
 
 profile_simulation = False
 
@@ -26,11 +22,13 @@ integration_method = 'rk4'
 
 get_real_parameters = False # Get real time body positions with 1 minute accuracy positions for objects from the Nasa Horizons API
 
-post_newtonian_correction = False
+post_newtonian_correction = True
+
+barnes_hut = False
 
 FULL_ORBITS = True
 
-draw_trail_for_empty = False
+draw_trail_for_empty = True
 
 timestep_seconds = HOUR # Define the initial timestep value in seconds
 
@@ -48,7 +46,7 @@ if get_real_parameters:
 if debug:
     for body in bodies:
         print(body.name, body.pos, body.vel)
-        
+
 screen = init_display(screen_width, screen_height)
 
 clear_body_trails()
@@ -111,25 +109,28 @@ while running:
 
                     pygame.image.save(screen, screenshot_name)
 
-    if not paused:        
+    if not paused:
         for body in bodies:
-            run_simulation(timestep_seconds, integration_method, post_newtonian_correction)
+            run_simulation(timestep_seconds, integration_method, post_newtonian_correction, barnes_hut)
         if debug:
             for body in bodies:
                 print(body.name, body.pos, body.vel)
-    
+
     mouse_pos = np.array(pygame.mouse.get_pos())  # Convert to numpy array for compatibility with our function
 
     for body in bodies:
-        if is_mouse_over_body(mouse_pos, body, focus_object, SCALE_DIST, screen):
-            font = pygame.font.Font(None, 36)
-            text_surface = font.render(body.name, True, (255, 255, 255))  # White color, adjust as needed
-            screen.blit(text_surface, (mouse_pos[0] + 10, mouse_pos[1] + 10))  # Offset a bit for better visibility    
+        try:
+            if is_mouse_over_body(mouse_pos, body, focus_object, SCALE_DIST, screen):
+                font = pygame.font.Font(None, 36)
+                text_surface = font.render(body.name, True, (255, 255, 255))  # White color, adjust as needed
+                screen.blit(text_surface, (mouse_pos[0] + 10, mouse_pos[1] + 10))  # Offset a bit for better visibility    
+        except Excpection as e:
+            continue
 
     draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen)
     display_time(timestep_seconds, screen, paused)
-    
+
     pygame.display.flip()
     pygame.time.wait(10)
-    
+
 pygame.quit()
