@@ -1,10 +1,11 @@
 from constants import G, C
 from planet import bodies
 import numpy as np
+import integration
 
 class Node:
     def __init__(self, center, size):
-        self.center = np.array([0.0, 0.0, 0.0])
+        self.center = np.array(center)
         self.mass = 0.0
         self.size = size  # dimensions of the node
         self.children = []  # children nodes
@@ -23,6 +24,7 @@ def build_tree(bodies, center, size):
         node.mass = node.body.mass
         node.center = node.body.pos
     else:
+        node.children = []
         for i in [-0.5, 0.5]:
             for j in [-0.5, 0.5]:
                 for k in [-0.5, 0.5]:
@@ -31,9 +33,11 @@ def build_tree(bodies, center, size):
                     if child:
                         node.children.append(child)
                         node.mass += child.mass
-                        node.center += child.center * child.mass
 
-        node.center /= node.mass
+        center_of_mass_numerator = np.array([0.0, 0.0, 0.0])
+        for child in node.children:
+            center_of_mass_numerator += child.center * child.mass
+        node.center = center_of_mass_numerator / node.mass if node.mass != 0 else node.center
 
     return node
 
@@ -95,182 +99,53 @@ def compute_root_size(bodies):
 def calculate_net_force(target_body, post_newtonian_correction, barnes_hut):
     if barnes_hut:
         root = build_tree(bodies, np.array([0, 0, 0]), compute_root_size(bodies))
-        net_force = calculate_force_on_body(root, target_body, 0.5)
+        net_force = calculate_force_on_body(root, target_body, 1)
     else:
         net_force = np.array([0.0, 0.0, 0.0])
         for body in bodies:
             if body != target_body:
                 r = body.pos - target_body.pos
                 r_mag = np.linalg.norm(r)
-                force_mag = G * target_body.mass * body.mass / r_mag**2
+                # Avoid computation for extremely close objects (optional)
+                if r_mag < 1e-6:
+                    continue
 
+                force_mag = G * target_body.mass * body.mass / r_mag**2
                 # 1st post-Newtonian correction from GR
                 if post_newtonian_correction:
                     correction_force_mag = (G**2 / C**2) * target_body.mass * body.mass * (target_body.mass + body.mass) / r_mag**3
                     force_mag += correction_force_mag
-
                 force = force_mag * r / r_mag
                 net_force += force
 
     # Here, you can still add any post-Newtonian correction if necessary
     return net_force
 
-def derivatives(body, post_newtonian_correction, barnes_hut):
-    net_force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    acc = net_force / body.mass  # Acceleration = net force / mass
-    return body.vel, acc
-
-def euler_integration(body, timescale_seconds, post_newtonian_correction, barnes_hut):
-    vel_derivative, acc_derivative = derivatives(body, post_newtonian_correction, barnes_hut)
-    body.pos += vel_derivative * timescale_seconds
-    body.vel += acc_derivative * timescale_seconds
-
-def midpoint_integration(body, timescale_seconds, post_newtonian_correction, barnes_hut):
-
-    k1_vel, k1_acc = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    k1_pos = k1_vel * timescale_seconds
-    k1_acc *= timescale_seconds
-
-    # temporary update to midpoint state
-    body.pos += 0.5 * k1_pos
-    body.vel += 0.5 * k1_acc
-
-    k2_vel, k2_acc = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    k2_pos = k2_vel * timescale_seconds
-    k2_acc *= timescale_seconds
-
-    # Roll back the temporary update
-    body.pos -= 0.5 * k1_pos
-    body.vel -= 0.5 * k1_acc
-
-    # Do the actual update
-    body.pos += k2_pos
-    body.vel += k2_acc
-
-def heun_integration(body, timescale_seconds, post_newtonian_correction, barnes_hut):
-    k1_vel, k1_acc = derivatives(body, post_newtonian_correction, barnes_hut)
-    k1_pos = k1_vel * timescale_seconds
-    k1_acc *= timescale_seconds
-
-    # temporary update to predict the end state
-    body.pos += k1_pos
-    body.vel += k1_acc
-
-    k2_vel, k2_acc = derivatives(body, post_newtonian_correction, barnes_hut)
-    k2_pos = k2_vel * timescale_seconds
-    k2_acc *= timescale_seconds
-
-    # Roll back the temporary update
-    body.pos -= k1_pos
-    body.vel -= k1_acc
-
-    # Do the actual update with the average of the initial and predicted end state
-    body.pos += 0.5 * (k1_pos + k2_pos)
-    body.vel += 0.5 * (k1_acc + k2_acc)
-
-def rk4_integration(body, timescale_seconds, post_newtonian_correction, barnes_hut):
-    pos_initial = body.pos.copy()
-    vel_initial = body.vel.copy()
-
-    force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    k1_acc = force / body.mass
-    k1_vel = body.vel
-
-    k1_pos = k1_vel * timescale_seconds
-    k1_acc *= timescale_seconds
-
-    body.pos = pos_initial + 0.5 * k1_pos
-    body.vel = vel_initial + 0.5 * k1_acc
-
-    force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    k2_acc = force / body.mass
-    k2_vel = body.vel
-
-    k2_pos = k2_vel * timescale_seconds
-    k2_acc *= timescale_seconds
-
-    body.pos = pos_initial + 0.5 * k2_pos
-    body.vel = vel_initial + 0.5 * k2_acc
-
-    force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    k3_acc = force / body.mass  # Convert force to acceleration
-    k3_vel = body.vel  # Use the current velocity of the body
-
-    k3_pos = k3_vel * timescale_seconds
-    k3_acc *= timescale_seconds
-
-    body.pos = pos_initial + k3_pos
-    body.vel = vel_initial + k3_acc
-
-    force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    k4_acc = force / body.mass  # Convert force to acceleration
-    k4_vel = body.vel  # Use the current velocity of the body
-
-    k4_pos = k4_vel * timescale_seconds
-    k4_acc *= timescale_seconds
-
-    # return body's position and velocity to the initial values before applying the final update
-    body.pos = pos_initial
-    body.vel = vel_initial
-
-    body.pos += (k1_pos + 2 * k2_pos + 2 * k3_pos + k4_pos) / 6
-    body.vel += (k1_acc + 2 * k2_acc + 2 * k3_acc + k4_acc) / 6
-
-def verlet_integration(body, timescale_seconds, post_newtonian_correction, barnes_hut):
-    # Compute current acceleration
-    net_force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    acceleration = net_force / body.mass
-
-    # Compute new position using current velocity and acceleration
-    new_pos = body.pos + body.vel * timescale_seconds + 0.5 * acceleration * timescale_seconds**2
-
-    # Compute new acceleration based on new position
-    body.pos = new_pos
-    new_net_force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    new_acceleration = new_net_force / body.mass
-
-    # Compute new velocity using average acceleration
-    body.vel += 0.5 * (acceleration + new_acceleration) * timescale_seconds
-
-def leapfrog_integration(body, timescale_seconds, post_newtonian_correction, barnes_hut):
-    # Half-step velocity update
-    net_force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    acceleration = net_force / body.mass
-    body.vel += 0.5 * acceleration * timescale_seconds
-
-    # Full-step position update
-    body.pos += body.vel * timescale_seconds
-
-    # Second half-step velocity update
-    net_force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    acceleration = net_force / body.mass
-    body.vel += 0.5 * acceleration * timescale_seconds
-
 def get_integrator(method):
     integrators = {
         # Simple and computationally efficient but can suffer from numerical instability. Often less accurate, especially for stiff systems or long simulations.
-        'euler': euler_integration,
+        'euler': integration.euler_integration,
         # Similar to Euler but takes the average of the initial and midpoint derivatives, improving accuracy. Still might not be suitable for stiff problems.
-        'midpoint': midpoint_integration,
+        'midpoint': integration.midpoint_integration,
         # A predictor-corrector method that's an improved version of the Euler method. It's more accurate but still simple and efficient.
-        'heun': heun_integration,
+        'heun': integration.heun_integration,
         # Fourth-order Runge-Kutta method. A well-balanced choice for many problems, offering good accuracy and stability. More computationally expensive than Euler but widely used in various fields.
-        'rk4': rk4_integration,
+        'rk4': integration.rk4_integration,
         # Commonly used in molecular dynamics simulations and other physical simulations. It conserves energy over long simulations but may be less accurate in terms of position.
-        'verlet': verlet_integration,
+        'verlet': integration.verlet_integration,
         # A time-reversible method often used in gravitational simulations. It conserves momentum and is more accurate than simple methods like Euler for oscillatory problems.
-        'leapfrog': leapfrog_integration,
+        'leapfrog': integration.leapfrog_integration,
 
         # Designed for integrating celestial bodies following Kepler's laws. It can be highly accurate for such applications, relying on specific orbital parameters like semi-major axis, eccentricity, etc.
         #'orbital_elements': orbital_elements_integration
     }
     return integrators.get(method)
 
-def run_simulation(timescale_seconds, method, post_newtonian_correction, barnes_hut):
+def run_simulation(timescale_seconds, method, post_newtonian_correction, barnes_hut, FULL_ORBITS):
     integrator = get_integrator(method)
     for body in bodies:
-        integrator(body, timescale_seconds, post_newtonian_correction, barnes_hut)
-        if body.parent:
+        integrator(body, post_newtonian_correction, barnes_hut, calculate_net_force, timescale_seconds)
+        if body.parent and FULL_ORBITS:
             calculate_orbital_parameters(body)
 
 def calculate_orbital_position(body):
@@ -303,86 +178,57 @@ def calculate_semi_major_axis(body):
     E = 2 * np.arctan(np.sqrt(eccentricity_ratio) * np.tan(0.5 * body.true_anomaly))
     body.semi_major_axis = -G * body.parent.mass / (2 * body.E)
 
-
-def calculate_eccentricity(body):
-    # The standard gravitational parameter
-    mu = G * (body.mass + body.parent.mass)
-
-    # The distance between the body and the focus object
-    r = np.linalg.norm(body.pos - body.parent.pos)
-
-    # The speed of the body
-    v = np.linalg.norm(body.vel)
-
-    # The specific relative angular momentum
-    h = np.linalg.norm(np.cross(body.pos - body.parent.pos, body.vel))
-
-    # The specific orbital energy
-    epsilon = v**2 / 2 - mu / r
-
-    # The eccentricity of the orbit
-    body.eccentricity = np.sqrt(1 + 2 * epsilon * h**2 / mu**2)
-
-    # Check for orbits that are not elliptical (eccentricity is not less than 1)
-    if body.eccentricity >= 1:
-        body.parent = None
-        print(f"Error: {body.name} has an eccentricity of {body.eccentricity}, indicating a non-elliptical orbit.")
-
 def calculate_semi_minor_axis(body):
     body.semi_minor_axis = body.semi_major_axis * np.sqrt(1 - body.eccentricity**2)
-
-def calculate_argument_of_periapsis(body):
-    # Define the reference plane's normal vector (z-axis in this case)
-    reference_normal = np.array([0, 0, 1])
-
-    # Calculate the cross product between the reference normal and the relative position vector
-    n = np.cross(reference_normal, body.relative_pos)
-
-    # Ensure the dot product argument is within the valid range [-1, 1]
-    dot_product_arg = np.clip(np.dot(n, body.relative_pos) / (np.linalg.norm(n) * np.linalg.norm(body.relative_pos)), -1, 1)
-
-    # Calculate the argument of periapsis
-    body.argument_of_periapsis = np.arccos(dot_product_arg)
-
-    # Adjust the argument of periapsis for the correct direction (for inclined orbits)
-    if body.relative_pos[2] < 0:
-        body.argument_of_periapsis = 2 * np.pi - body.argument_of_periapsis
 
 def calculate_mean_anomaly(body):
     E = 2 * np.arctan(np.sqrt((1 - body.eccentricity) / (1 + body.eccentricity)) * np.tan(0.5 * body.true_anomaly))
     body.mean_anomaly = E - body.eccentricity * np.sin(E)
 
-def calculate_true_anomaly(body):
-    if body.parent is None:
+def calculate_eccentricity(body):
+    if body.parent == None:
         return
+    else: 
+        r = body.relative_pos
+        v = body.relative_vel
+        h = np.cross(r, v)
+        mu = G * body.parent.mass
+        e_vector = (np.cross(v, h) - mu * r / np.linalg.norm(r)) / mu
+        body.eccentricity = np.linalg.norm(e_vector)
 
-    r = body.pos - body.parent.pos
-    v = body.vel - body.parent.vel
-    h = np.cross(r, v)
-    n = np.cross([0, 0, 1], h)
+        if body.eccentricity >= 1:
+            body.parent = None
+            print(f"Error: {body.name} has an eccentricity of {body.eccentricity}, indicating a non-elliptical orbit.")
+        return e_vector
 
-    norm_n = np.linalg.norm(n)
-    norm_r = np.linalg.norm(r)
-
-    epsilon = 1e-10  # Small tolerance value
-    if norm_n < epsilon or norm_r < epsilon:
-        theta = 0
-    else:
-        cos_theta = np.dot(n, r) / (norm_n * norm_r)
-        cos_theta = np.clip(cos_theta, -1, 1)  # Ensure the value is within the interval [-1,1]
-        theta = np.arccos(cos_theta)
-
+def calculate_true_anomaly(body, e_vector):
+    r = body.relative_pos
+    v = body.relative_vel
+    nu = np.arccos(np.dot(e_vector, r) / (body.eccentricity * np.linalg.norm(r)))
     if np.dot(r, v) < 0:
-        theta = 2 * np.pi - theta
+        nu = 2 * np.pi - nu
+    body.true_anomaly = nu
 
-    body.true_anomaly = theta
+def calculate_argument_of_periapsis(body, h, e_vector):
+    n = np.cross([0, 0, 1], h)
+    omega_argument = np.dot(n, e_vector) / (np.linalg.norm(n) * body.eccentricity)
+    omega_argument = np.clip(omega_argument, -1, 1)
+    omega = np.arccos(omega_argument)
+    if e_vector[2] < 0:
+        omega = 2 * np.pi - omega
+    body.argument_of_periapsis = omega
 
 def calculate_orbital_parameters(body):
     calculate_relative_vectors(body)
     calculate_energy_and_momentum(body)
+    h = np.cross(body.relative_pos, body.relative_vel)
+    
+    # This will give us both the eccentricity vector and set the eccentricity attribute of the body.
+    e_vector = calculate_eccentricity(body)
+    
+    # Use the previously computed e_vector here
+    calculate_true_anomaly(body, e_vector)
+    calculate_argument_of_periapsis(body, h, e_vector)
     calculate_semi_major_axis(body)
     calculate_semi_minor_axis(body)
-    calculate_eccentricity(body)
-    calculate_argument_of_periapsis(body)
     calculate_mean_anomaly(body)
-    calculate_true_anomaly(body)
