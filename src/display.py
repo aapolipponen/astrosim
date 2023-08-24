@@ -63,12 +63,10 @@ def display_time(timescale_seconds, screen, paused):
         human_readable_time = convert_seconds_to_human_readable(timescale_seconds, paused)
         font = pygame.font.Font(None, 36)
         text = font.render("Timestep: " + human_readable_time, 1, (255, 255, 255))
-        
+
         text_rect = text.get_rect()
         screen_rect = screen.get_rect()
-
         text_rect.bottomleft = screen_rect.bottomleft  # Place the text in the bottom-left corner
-
         screen.blit(text, text_rect)
     except Exception as e:
         if "termux" in str(e).lower():
@@ -76,21 +74,24 @@ def display_time(timescale_seconds, screen, paused):
         else:
             raise e
                 
-def draw_trail(screen, body, body_trails, focus_object, SCALE_DIST):
+def draw_trail(screen, body, body_trails, focus_object, fade_trails, SCALE_DIST):
     focus_pos_pygame = np.array([screen.get_width() // 2, screen.get_height() // 2])
 
     # Store the scaled position in trail
     body_trails[body.name].append((body.pos[:2] - focus_object.pos[:2]))
 
     # If not displaying full orbits, remove the oldest position if the trail is too long
-    #if len(body_trails[body.name]) > 5:
-    #    body_trails[body.name].pop(0)
+    if fade_trails:
+        if len(body_trails[body.name]) > 5:
+            body_trails[body.name].pop(0)
 
     # Draw the trail with a fixed color
     for i in range(1, len(body_trails[body.name])):
-        # Calculate a fade factor based on the position in the trail
-        #fade_factor = i / len(body_trails[body.name])
-        #trail_color = tuple([int(c * fade_factor) for c in body.color])
+        if fade_trails:
+            # Calculate a fade factor based on the position in the trail
+            fade_factor = i / len(body_trails[body.name])
+            trail_color = tuple([int(c * fade_factor) for c in body.color])
+        
         trail_color = body.color
         trail_start = (body_trails[body.name][i-1] * SCALE_DIST + focus_pos_pygame).astype(int)
         trail_end = (body_trails[body.name][i] * SCALE_DIST + focus_pos_pygame).astype(int)
@@ -117,19 +118,19 @@ def draw_orbit(screen, body, focus_object, SCALE_DIST):
     pygame.draw.circle(screen, (255, 0, 0), (x_pygame[np.argmin(r)], y_pygame[np.argmin(r)]), 1)
     pygame.draw.circle(screen, (255, 0, 255), (x_pygame[np.argmax(r)], y_pygame[np.argmax(r)]), 1)
                                 
-def draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen):
+def draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen, fade_trails):
     focus_pos_pygame = np.array([screen.get_width() // 2, screen.get_height() // 2])
     screen.fill((0, 0, 0))
 
     for body in bodies:
+        relative_pos = body.pos[:2] - focus_object.pos[:2]
+        body_pos_scaled = relative_pos * SCALE_DIST
+        body_pos_pygame = focus_pos_pygame + body_pos_scaled
+
         if FULL_ORBITS and body.parent:
             draw_orbit(screen, body, focus_object, SCALE_DIST)
         elif draw_trail_for_empty:
-            draw_trail(screen, body, body_trails, focus_object, SCALE_DIST)
-
-        # Calculate the body's position relative to the focus object
-        body_pos_scaled = (body.pos[:2] - focus_object.pos[:2]) * SCALE_DIST
-        body_pos_pygame = focus_pos_pygame + body_pos_scaled
+            draw_trail(screen, body, body_trails, focus_object, fade_trails, SCALE_DIST)
 
         # Calculate the body's radius in pixels
         body_radius = max(1, int(body.radius * SCALE_DIST))

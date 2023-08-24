@@ -46,7 +46,7 @@ def adjust_timestep(timestep_seconds, adjust_amount, direction):
     else:
         return timestep_seconds - adjust_amount
 
-def change_timestep(timestep_seconds, direction, fine_adjust, integration_method=""):    
+def change_timestep(timestep_seconds, direction, fine_adjust, debug, integration_method=""):    
     leapfrog = "leapfrog" in integration_method.lower()
     adjust_amount = 60 if fine_adjust else 60*60 # adjust these values as necessary
 
@@ -59,12 +59,13 @@ def change_timestep(timestep_seconds, direction, fine_adjust, integration_method
         else:
             timestep_seconds = adjust_timestep(timestep_seconds, adjust_amount, direction)
 
-    if timestep_seconds > 0:
-        print("Time scale increased to", timestep_seconds)
-    elif timestep_seconds < 0:
-        print("Time scale increased in negative direction to", timestep_seconds)
-    elif timestep_seconds == 0:
-        print("Timestep is at zero")
+    if debug:
+        if timestep_seconds > 0:
+            print("Time scale increased to", timestep_seconds)
+        elif timestep_seconds < 0:
+            print("Time scale increased in negative direction to", timestep_seconds)
+        elif timestep_seconds == 0:
+            print("Timestep is at zero")
 
     return timestep_seconds
 

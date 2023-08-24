@@ -16,27 +16,26 @@ focus_object = earth
 
 debug = False
 profile_simulation = False
+starconsole = False
 
 integration_method = 'rk4'
+
+focus_object = earth
 
 get_real_parameters = False # Get real time body positions with 1 minute accuracy positions for objects from the Nasa Horizons API
 
 post_newtonian_correction = True
-
 barnes_hut = False
 
+fade_trails = False
+draw_trail_for_empty = False
 FULL_ORBITS = True
 
-draw_trail_for_empty = True
-
-timestep_seconds = HOUR # Define the initial timestep value in seconds
-
-SCALE_DIST = 1e-10 # Calculate scaling factors for size and distance
-
+timestep_seconds = HOUR / 2 # Define the initial timestep value in seconds
+SCALE_DIST = 5e-10 # Calculate scaling factors for size and distance
 ZOOM_SPEED = 1.1  # Adjust this value to increase/decrease the zoom speed
-
-screen_width = 8000
-screen_height = 8000
+screen_width = 1920
+screen_height = 1080
 
 #if get_real_parameters:
 #    for body in bodies:
@@ -62,12 +61,14 @@ if profile_simulation:
     cProfile.run('profile(500)')
     exit()
 
-def start_repl():
-    custom_repl(locals())
 
-# Start the REPL on a separate thread
-repl_thread = threading.Thread(target=start_repl)
-repl_thread.start()
+if starconsole:
+    def start_repl():
+        custom_repl(locals())
+        
+    # Start the REPL on a separate thread
+    repl_thread = threading.Thread(target=start_repl)
+    repl_thread.start()
 
 # Main simulation loop
 running = True
@@ -80,9 +81,9 @@ while running:
             if pygame.key.get_pressed()[pygame.K_LSHIFT] or pygame.key.get_pressed()[pygame.K_RSHIFT] or pygame.key.get_mods() & pygame.KMOD_CTRL:  # shift is pressed
                 fine_adjust_enabled = pygame.key.get_mods() & pygame.KMOD_CTRL
                 if event.button == 4:  # scroll up
-                    timestep_seconds = change_timestep(timestep_seconds, 'up', fine_adjust_enabled, integration_method)
+                    timestep_seconds = change_timestep(timestep_seconds, 'up', fine_adjust_enabled, debug, integration_method)
                 elif event.button == 5:  # scroll down
-                    timestep_seconds = change_timestep(timestep_seconds, 'down', fine_adjust_enabled, integration_method)
+                    timestep_seconds = change_timestep(timestep_seconds, 'down', fine_adjust_enabled, debug, integration_method)
             elif event.button == 4:  # scroll up
                 SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'up')
             elif event.button == 5:  # scroll down
@@ -107,26 +108,29 @@ while running:
                         screenshot_name = os.path.join(screenshot_folder, f"screenshot_{index}.png")
 
                     pygame.image.save(screen, screenshot_name)
+                    
+                    if debug:
+                        print("Took screnshot")
 
     if not paused:
         for body in bodies:
-            run_simulation(timestep_seconds, integration_method, post_newtonian_correction, barnes_hut)
+            run_simulation(timestep_seconds, integration_method, post_newtonian_correction, barnes_hut, FULL_ORBITS)
         if debug:
             for body in bodies:
                 print(body.name, body.pos, body.vel)
 
-    mouse_pos = np.array(pygame.mouse.get_pos())  # Convert to numpy array for compatibility with our function
+    #mouse_pos = np.array(pygame.mouse.get_pos())  # Convert to numpy array for compatibility with our function
 
-    for body in bodies:
-        try:
-            if is_mouse_over_body(mouse_pos, body, focus_object, SCALE_DIST, screen):
-                font = pygame.font.Font(None, 36)
-                text_surface = font.render(body.name, True, (255, 255, 255))  # White color, adjust as needed
-                screen.blit(text_surface, (mouse_pos[0] + 10, mouse_pos[1] + 10))  # Offset a bit for better visibility    
-        except Exception as e:
-            continue
+    #for body in bodies:
+    #    try:
+    #        if is_mouse_over_body(mouse_pos, body, focus_object, SCALE_DIST, screen):
+    #            font = pygame.font.Font(None, 36)
+    #            text_surface = font.render(body.name, True, (255, 255, 255))  # White color, adjust as needed
+    #            screen.blit(text_surface, (mouse_pos[0] + 10, mouse_pos[1] + 10))  # Offset a bit for better visibility    
+    #    except Exception as e:
+    #        continue
 
-    draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen)
+    draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen, fade_trails)
     display_time(timestep_seconds, screen, paused)
 
     pygame.display.flip()
