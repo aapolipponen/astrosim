@@ -5,7 +5,7 @@ from planet import bodies, mars, sun, earth
 from constants import YEAR, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND
 from simulation import run_simulation
 from display import draw_objects, display_time, init_display, clear_body_trails
-from request import get_body_parameters
+#from request import get_body_parameters
 from utilities import is_mouse_over_body, change_timestep, zoom, change_focus
 from starconsole import custom_repl
 import cProfile
