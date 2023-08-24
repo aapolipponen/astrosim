@@ -14,8 +14,7 @@ import os
 
 focus_object = earth
 
-debug = True
-
+debug = False
 profile_simulation = False
 
 integration_method = 'rk4'
@@ -39,9 +38,9 @@ ZOOM_SPEED = 1.1  # Adjust this value to increase/decrease the zoom speed
 screen_width = 8000
 screen_height = 8000
 
-if get_real_parameters:
-    for body in bodies:
-        get_body_parameters(body)
+#if get_real_parameters:
+#    for body in bodies:
+#        get_body_parameters(body)
 
 if debug:
     for body in bodies:
@@ -124,7 +123,7 @@ while running:
                 font = pygame.font.Font(None, 36)
                 text_surface = font.render(body.name, True, (255, 255, 255))  # White color, adjust as needed
                 screen.blit(text_surface, (mouse_pos[0] + 10, mouse_pos[1] + 10))  # Offset a bit for better visibility    
-        except Excpection as e:
+        except Exception as e:
             continue
 
     draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen)
