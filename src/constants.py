@@ -41,7 +41,8 @@ R_SUN = 6.9634e8  # Sun radius, meters
 M_SUN = 1.989e30  # Sun mass, kg
 
 # ====== Mathematical Constants ======
-DEG_TO_RAD = np.pi / 180
+pi = π = np.pi
+DEG_TO_RAD = π / 180
 GOLDEN_RATIO = (1 + 5**0.5) / 2
 EULERS_NUMBER = np.exp(1)
 
@@ -62,6 +63,66 @@ def deg_to_rad(degree):
 def half_rgb(rgb_color):
     """Returns half of the RGB color values."""
     return tuple(max(int(color / 2), 0) for color in rgb_color)
+
+def double_rgb(rgb_color):
+    """Returns double of the RGB color values, capped at 255."""
+    return tuple(min(int(color * 2), 255) for color in rgb_color)
+
+def rgb_to_hsl(r, g, b):
+    r /= 255.0
+    g /= 255.0
+    b /= 255.0
+    max_val = max(r, g, b)
+    min_val = min(r, g, b)
+    diff = max_val-min_val
+    l = (max_val+min_val) / 2.0
+    if max_val == min_val:
+        h = s = 0
+    else:
+        if l < 0.5:
+            s = diff / (max_val + min_val)
+        else:
+            s = diff / (2.0 - max_val - min_val)
+        if max_val == r:
+            h = (g - b) / diff + (g < b) * 6
+        elif max_val == g:
+            h = (b - r) / diff + 2
+        else:
+            h = (r - g) / diff + 4
+        h /= 6.0
+    return h, s, l
+
+def hsl_to_rgb(h, s, l):
+    if s == 0:
+        r = g = b = l
+    else:
+        def hue_to_rgb(p, q, t):
+            if t < 0:
+                t += 1
+            if t > 1:
+                t -= 1
+            if t < 1/6:
+                return p + (q - p) * 6 * t
+            if t < 1/2:
+                return q
+            if t < 2/3:
+                return p + (q - p) * (2/3 - t) * 6
+            return p
+        if l < 0.5:
+            q = l * (1 + s)
+        else:
+            q = l + s - l * s
+        p = 2 * l - q
+        r = hue_to_rgb(p, q, h + 1/3)
+        g = hue_to_rgb(p, q, h)
+        b = hue_to_rgb(p, q, h - 1/3)
+    return int(r * 255), int(g * 255), int(b * 255)
+
+def lighten_rgb_hsl(rgb_color, factor=0.4):
+    """Makes the RGB color lighter using HSL, preserving its hue."""
+    h, s, l = rgb_to_hsl(*rgb_color)
+    l = min(l + factor, 1)  # Increase lightness, but ensure it remains <= 1
+    return hsl_to_rgb(h, s, l)
 
 def celsius_to_fahrenheit(temp_c):
     """Convert Celsius to Fahrenheit."""

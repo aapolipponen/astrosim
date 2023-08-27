@@ -1,7 +1,7 @@
 import pygame
 import numpy as np
 #from load_scenario import load_scenario
-from planet import bodies, mars, sun, earth
+from planets import bodies, mars, sun, earth
 from constants import YEAR, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND
 from simulation import run_simulation
 from display import draw_objects, display_time, init_display, clear_body_trails
@@ -12,26 +12,20 @@ import cProfile
 import threading
 import os
 
-focus_object = earth
-
-debug = False
+debug = True
 profile_simulation = False
 starconsole = False
 
+focus_object = earth
 integration_method = 'rk4'
 
-focus_object = earth
-
-get_real_parameters = False # Get real time body positions with 1 minute accuracy positions for objects from the Nasa Horizons API
-
-post_newtonian_correction = True
-barnes_hut = False
+post_newtonian_correction = False
 
 fade_trails = False
-draw_trail_for_empty = False
+draw_trail_for_empty = True
 FULL_ORBITS = True
 
-timestep_seconds = HOUR / 2 # Define the initial timestep value in seconds
+timestep_seconds = HOUR # Define the initial timestep value in seconds
 SCALE_DIST = 5e-10 # Calculate scaling factors for size and distance
 ZOOM_SPEED = 1.1  # Adjust this value to increase/decrease the zoom speed
 screen_width = 1920
@@ -114,7 +108,7 @@ while running:
 
     if not paused:
         for body in bodies:
-            run_simulation(timestep_seconds, integration_method, post_newtonian_correction, barnes_hut, FULL_ORBITS)
+            run_simulation(timestep_seconds, integration_method, post_newtonian_correction, FULL_ORBITS)
         if debug:
             for body in bodies:
                 print(body.name, body.pos, body.vel)
