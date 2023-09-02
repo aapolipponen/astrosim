@@ -20,8 +20,6 @@ starconsole = False
 
 integration_method = 'rk4'
 
-focus_object = earth
-
 get_real_parameters = False # Get real time body positions with 1 minute accuracy positions for objects from the Nasa Horizons API
 
 post_newtonian_correction = True

@@ -253,4 +253,4 @@ triton = body(
 #bodies = [sun, earth]
 #bodies = [sun, earth, mars]
 bodies = [sun, earth, mercury, venus, mars, jupiter, saturn, uranus, neptune]
-bodies.extend([moon, io, europa, ganymede, callisto, dione, rhea, tethys, triton])
+#bodies.extend([moon, io, europa, ganymede, callisto, dione, rhea, tethys, triton])
