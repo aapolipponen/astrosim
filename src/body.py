@@ -13,6 +13,7 @@ class body:
         id=None,
         pos=None,
         velocity=None,
+        momentum=None,
         semi_major_axis=0,
         semi_minor_axis=0,
         eccentricity=0,
@@ -63,46 +64,42 @@ class body:
         else:
             self.vel = np.array(velocity)
 
+        if momentum is None:
+            self.momentum = np.zeros(3)
+        else:
+            self.momentum = np.array(momentum)
+
     def surface_gravity(self):
         return G * self.mass / (self.radius ** 2)
     
     def update_orbital_elements_from_state_vectors(self):
-        # Ensure that a parent body is defined for relative motion
         if self.parent is None:
             return
 
-        mu = G * self.parent.mass  # Gravitational parameter of the central body
+        mu = G * self.parent.mass
+        r = self.pos - self.parent.pos
+        v = self.vel - self.parent.vel
 
-        r = self.pos - self.parent.pos  # Relative position vector
-        v = self.vel - self.parent.vel  # Relative velocity vector
-
-        # Angular Momentum
         h = np.cross(r, v)
-
-        # Node Vector
         k = np.array([0, 0, 1])
         N = np.cross(k, h)
 
-        # Eccentricity Vector
-        e_vector = (1/mu) * ((np.cross(v, h)) - (mu * r/np.linalg.norm(r)))
+        e_vector = (np.cross(v, h) - mu * r / np.linalg.norm(r)) / mu
 
-        # Update attributes
         self.eccentricity = np.linalg.norm(e_vector)
         self.semi_major_axis = (np.linalg.norm(h)**2) / (mu * (1 - self.eccentricity**2))
-        self.inclination = np.arccos(h[2] / np.linalg.norm(h))
-        self.longitude_of_ascending_node = np.arccos(N[0] / np.linalg.norm(N))
-        self.argument_of_periapsis = np.arccos(np.dot(N, e_vector) / (np.linalg.norm(N) * self.eccentricity))
 
-        # True Anomaly (careful of quadrant)
-        dot_product = np.dot(e_vector, r)
-        if dot_product >= 0:
-            self.true_anomaly = np.arccos(dot_product / (self.eccentricity * np.linalg.norm(r)))
+        h_norm = np.linalg.norm(h)
+        N_norm = np.linalg.norm(N)
+
+        self.inclination = np.arccos(h[2] / h_norm)
+
+        if N_norm != 0:
+            self.longitude_of_ascending_node = np.arccos(N[0] / N_norm)
+            self.argument_of_periapsis = np.arccos(np.dot(N, e_vector) / (N_norm * self.eccentricity))
         else:
-            self.true_anomaly = 2 * np.pi - np.arccos(dot_product / (self.eccentricity * np.linalg.norm(r)))
-
-        # Adjust angles for correct quadrants
-        if N[1] < 0:
-            self.longitude_of_ascending_node = 2 * np.pi - self.longitude_of_ascending_node
-
-        if e_vector[2] < 0:
-            self.argument_of_periapsis = 2 * np.pi - self.argument_of_periapsis
+            # Orbit is planar. The notion of ascending node is meaningless.
+            # You could choose to define argument of periapsis directly in this case.
+            self.longitude_of_ascending_node = 0
+            #self.argument_of_periapsis = np.arctan2(e_vector[1], e_vector[0])
+            self.argument_of_periapsis = 0

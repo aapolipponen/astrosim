@@ -2,25 +2,6 @@ import numpy as np
 import pygame
 from display import clear_body_trails
 
-def is_mouse_over_body(mouse_pos, body, focus_object, SCALE_DIST, screen):
-    focus_pos_pygame = np.array([screen.get_width() // 2, screen.get_height() // 2])
-    planet_pos_scaled = (body.pos[:2] - focus_object.pos[:2]) * SCALE_DIST
-    planet_pos_pygame = focus_pos_pygame + planet_pos_scaled
-    
-    # Calculate the screen radius of the body
-    body_radius_screen = body.radius * SCALE_DIST
-
-    # Calculate the distance between the mouse and the body's screen position
-    distance = np.linalg.norm(mouse_pos - planet_pos_pygame)
-    
-    # Check if the mouse is within the body's screen radius
-    if distance < body_radius_screen:
-        mouse_over_body = True
-    else:
-        mouse_over_body = False
-    
-    return mouse_over_body
-
 def calculate_distance(pos1, pos2):
     return ((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)**0.5
 

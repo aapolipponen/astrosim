@@ -6,7 +6,7 @@ from constants import YEAR, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND
 from simulation import run_simulation
 from display import draw_objects, display_time, init_display, clear_body_trails
 #from request import get_body_parameters
-from utilities import is_mouse_over_body, change_timestep, zoom, change_focus
+from utilities import change_timestep, zoom, change_focus
 from starconsole import custom_repl
 import cProfile
 import threading
@@ -16,16 +16,15 @@ debug = True
 profile_simulation = False
 starconsole = False
 
-focus_object = earth
+focus_object = sun
 integration_method = 'rk4'
 
-post_newtonian_correction = False
-
-fade_trails = False
-draw_trail_for_empty = True
 FULL_ORBITS = True
+draw_trail_for_empty = False
+fade_trails = False
+draw_atmosphere = False
 
-timestep_seconds = HOUR # Define the initial timestep value in seconds
+timestep_seconds = MONTH # Define the initial timestep value in seconds
 SCALE_DIST = 5e-10 # Calculate scaling factors for size and distance
 ZOOM_SPEED = 1.1  # Adjust this value to increase/decrease the zoom speed
 screen_width = 1920
@@ -43,18 +42,14 @@ screen = init_display(screen_width, screen_height)
 
 clear_body_trails()
 
-hovered_body_name = None
-mouse_pos = pygame.mouse.get_pos()  # get the current mouse position
-
 if profile_simulation:
     def profile(profile_x_times):
         for i in range(profile_x_times):
-            run_simulation(timestep_seconds, integration_method, post_newtonian_correction)
+            run_simulation(timestep_seconds, integration_method)
             profile_x_times-=1
 
     cProfile.run('profile(500)')
     exit()
-
 
 if starconsole:
     def start_repl():
@@ -85,46 +80,34 @@ while running:
             elif event.button == 1:
                 focus_object = change_focus(bodies, SCALE_DIST, focus_object)
         elif event.type == pygame.KEYDOWN:
-            # Space key pauses the game
             if event.key == pygame.K_SPACE:
                 paused = not paused  # Toggle paused state
-            elif event.key == pygame.K_F12:
+            elif event.key == pygame.K_F12:                
+                screenshot_folder = "screenshots"
                 # Create a folder if it doesn't exist
-                if not os.path.exists("screenshots"):
-                    os.mkdir("screenshots")
-                    screenshot_folder = "screenshots"
-                    screenshot_name = os.path.join(screenshot_folder, "screenshot.png")
-
-                    if os.path.exists(screenshot_name):
-                        index = 1
-                        while os.path.exists(os.path.join(screenshot_folder, f"screenshot_{index}.png")):
-                            index += 1
-                        screenshot_name = os.path.join(screenshot_folder, f"screenshot_{index}.png")
-
-                    pygame.image.save(screen, screenshot_name)
-                    
-                    if debug:
-                        print("Took screnshot")
+                if not os.path.exists(screenshot_folder):
+                    os.mkdir(screenshot_folder)
+                
+                screenshot_name = os.path.join(screenshot_folder, "screenshot.png")
+                # Check if file already exists and find a unique name
+                if os.path.exists(screenshot_name):
+                    index = 1
+                    while os.path.exists(os.path.join(screenshot_folder, f"screenshot_{index}.png")):
+                        index += 1
+                    screenshot_name = os.path.join(screenshot_folder, f"screenshot_{index}.png")
+                pygame.image.save(screen, screenshot_name)
+                
+                if debug:
+                    print("Took Screenshot")
 
     if not paused:
         for body in bodies:
-            run_simulation(timestep_seconds, integration_method, post_newtonian_correction, FULL_ORBITS)
+            run_simulation(timestep_seconds, integration_method)
         if debug:
             for body in bodies:
                 print(body.name, body.pos, body.vel)
 
-    #mouse_pos = np.array(pygame.mouse.get_pos())  # Convert to numpy array for compatibility with our function
-
-    #for body in bodies:
-    #    try:
-    #        if is_mouse_over_body(mouse_pos, body, focus_object, SCALE_DIST, screen):
-    #            font = pygame.font.Font(None, 36)
-    #            text_surface = font.render(body.name, True, (255, 255, 255))  # White color, adjust as needed
-    #            screen.blit(text_surface, (mouse_pos[0] + 10, mouse_pos[1] + 10))  # Offset a bit for better visibility    
-    #    except Exception as e:
-    #        continue
-
-    draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen, fade_trails)
+    draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen, fade_trails, draw_atmosphere)
     display_time(timestep_seconds, screen, paused)
 
     pygame.display.flip()

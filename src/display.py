@@ -98,50 +98,28 @@ def draw_trail(screen, body, body_trails, focus_object, fade_trails, SCALE_DIST)
 
         pygame.draw.line(screen, trail_color, tuple(trail_start), tuple(trail_end))
 
-def draw_orbit(screen, body, focus_object, SCALE_DIST, _iterations=[0]):
+def draw_orbit(screen, body, focus_object, SCALE_DIST):
+    body.update_orbital_elements_from_state_vectors()
+    
     focus_pos_pygame = np.array([screen.get_width() // 2, screen.get_height() // 2])
     theta = np.linspace(0, 2 * np.pi, 1000)
-    
     a = body.semi_major_axis
     e = body.eccentricity
-    
     r = a * (1 - e**2) / (1 + e * np.cos(theta))
     x = r * np.cos(theta)
     y = r * np.sin(theta)
-
-    # Rotate the orbit by the argument of periapsis
-    rotation_theta = body.argument_of_periapsis
-
-    rotation_matrix = np.array([[np.cos(rotation_theta), -np.sin(rotation_theta)], 
-                                [np.sin(rotation_theta),  np.cos(rotation_theta)]])
-    
-    rotated_coords = np.dot(rotation_matrix, np.vstack([x, y]))
-    x, y = rotated_coords[0], rotated_coords[1]
     
     parent_pos_scaled = (body.parent.pos[:2] - focus_object.pos[:2]) * SCALE_DIST
     focus_pos_pygame = (focus_pos_pygame + parent_pos_scaled).astype(int)
-    
-    x *= SCALE_DIST
-    x += focus_pos_pygame[0]
-    y *= -SCALE_DIST
-    y += focus_pos_pygame[1]
+    x_pygame = (-x * SCALE_DIST + focus_pos_pygame[0]).astype(int)
+    y_pygame = (y * SCALE_DIST + focus_pos_pygame[1]).astype(int)
 
-    x_pygame = np.where(np.isnan(x), 0, x).astype(int)
-    y_pygame = np.where(np.isnan(y), 0, y).astype(int)
-    
     for i in range(1, len(x_pygame)):
         pygame.draw.line(screen, half_rgb(body.color), (x_pygame[i-1], y_pygame[i-1]), (x_pygame[i], y_pygame[i]))
     
     pygame.draw.circle(screen, (255, 0, 0), (x_pygame[np.argmin(r)], y_pygame[np.argmin(r)]), 1)
     pygame.draw.circle(screen, (255, 0, 255), (x_pygame[np.argmax(r)], y_pygame[np.argmax(r)]), 1)
-
-    # Iteration counter and update logic
-    update_threshold = 60  # For example, update every 60 calls
-    _iterations[0] += 1
-    if _iterations[0] >= update_threshold:
-        body.update_orbital_elements_from_state_vectors()
-        _iterations[0] = 0
-
+    
 def draw_gradual_transparency(screen, center, start_radius, thickness, color):
     a = 255  # Initial transparency
     b = 0.1  # Decay rate. Adjust this value to change the fade speed
@@ -153,7 +131,7 @@ def draw_gradual_transparency(screen, center, start_radius, thickness, color):
         pygame.draw.circle(temp_surface, (*color, alpha), center, radius)
         screen.blit(temp_surface, (0, 0))
 
-def draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen, fade_trails):
+def draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen, fade_trails, draw_atmosphere):
     focus_pos_pygame = np.array([screen.get_width() // 2, screen.get_height() // 2])
     screen.fill((0, 0, 0))
 
@@ -170,10 +148,10 @@ def draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, sc
         # Calculate the body's radius in pixels
         body_radius = max(1, int(body.radius * SCALE_DIST))
 
-        # Draw the atmosphere if the body has one
-        if hasattr(body, 'atmosphere') and body.atmosphere:
+        # Draw the atmosphere if the body has one and the draw_atmosphere flag is True
+        if draw_atmosphere and hasattr(body, 'atmosphere') and body.atmosphere:
             atmosphere_thickness = int(500 * body.atmosphere.scale_height * SCALE_DIST * 0.1)
-            atmosphere_color = lighten_rgb_hsl(body.color)  # Some light blue color without alpha
+            atmosphere_color = lighten_rgb_hsl(body.color)
             
             draw_gradual_transparency(screen, tuple(body_pos_pygame.astype(int)), body_radius, atmosphere_thickness, atmosphere_color)
 
