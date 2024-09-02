@@ -1,7 +1,7 @@
 import pygame
 import numpy as np
 from planet import bodies
-from constants import half_rgb, YEAR, MONTH, DAY, HOUR, MINUTE
+from constants import half_rgb, YEAR, MONTH, DAY, HOUR, MINUTE, G
 
 def clear_body_trails():
     global body_trails
@@ -118,7 +118,62 @@ def draw_orbit(screen, body, focus_object, SCALE_DIST):
     pygame.draw.circle(screen, (255, 0, 0), (x_pygame[np.argmin(r)], y_pygame[np.argmin(r)]), 1)
     pygame.draw.circle(screen, (255, 0, 255), (x_pygame[np.argmax(r)], y_pygame[np.argmax(r)]), 1)
                                 
-def draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen, fade_trails):
+def draw_gravity_field(screen, body, focus_object, SCALE_DIST, gravity_multiplier=10, smooth=False):
+    focus_pos_pygame = np.array([screen.get_width() // 2, screen.get_height() // 2])
+    body_pos_scaled = (body.pos[:2] - focus_object.pos[:2]) * SCALE_DIST
+    body_pos_pygame = focus_pos_pygame + body_pos_scaled
+
+    # Define the area around the body to visualize the gravity field
+    field_radius = int(body.radius * SCALE_DIST * 30)  # Increase the multiplier for a larger field
+    grid_size = 50  # Fewer points for faster calculation, interpolate to smooth
+
+    # Create grid coordinates relative to the body's position
+    x = np.linspace(-field_radius, field_radius, grid_size)
+    y = np.linspace(-field_radius, field_radius, grid_size)
+    xv, yv = np.meshgrid(x, y)
+
+    # Calculate distance from the body
+    distances = np.sqrt(xv**2 + yv**2) / SCALE_DIST
+
+    # Calculate gravity strength, adding a small constant to avoid division by zero
+    with np.errstate(divide='ignore', invalid='ignore'):
+        gravity_field = gravity_multiplier * (G * body.mass) / (distances**2 + 1e-10)
+
+    # Handle NaN and infinite values
+    gravity_field = np.nan_to_num(gravity_field, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # Normalize the gravity field to [0, 1]
+    max_gravity = np.max(gravity_field)
+    if max_gravity > 0:
+        gravity_field /= max_gravity
+
+    if smooth:
+        # Interpolated smooth color transitions
+        for i in range(grid_size - 1):
+            for j in range(grid_size - 1):
+                color_intensity = int(255 * gravity_field[i, j])
+                color = (color_intensity, color_intensity, 0)  # Yellowish color for gravity
+
+                # Four corners of each grid cell
+                points = [
+                    body_pos_pygame + np.array([xv[i, j], yv[i, j]]),
+                    body_pos_pygame + np.array([xv[i + 1, j], yv[i + 1, j]]),
+                    body_pos_pygame + np.array([xv[i, j + 1], yv[i, j + 1]]),
+                    body_pos_pygame + np.array([xv[i + 1, j + 1], yv[i + 1, j + 1]]),
+                ]
+                pygame.draw.polygon(screen, color, points)
+    else:
+        # Draw dots
+        for i in range(grid_size):
+            for j in range(grid_size):
+                color_intensity = int(255 * gravity_field[i, j])
+                color = (color_intensity, color_intensity, 0)  # Yellowish color for gravity
+
+                # Position on the screen
+                field_pos_pygame = body_pos_pygame + np.array([xv[i, j], yv[i, j]])
+                screen.set_at(tuple(field_pos_pygame.astype(int)), color)
+                
+def draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen, fade_trails, display_names, gravity_field=False):
     focus_pos_pygame = np.array([screen.get_width() // 2, screen.get_height() // 2])
     screen.fill((0, 0, 0))
 
@@ -126,6 +181,10 @@ def draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, sc
         relative_pos = body.pos[:2] - focus_object.pos[:2]
         body_pos_scaled = relative_pos * SCALE_DIST
         body_pos_pygame = focus_pos_pygame + body_pos_scaled
+
+        # Draw the gravity field around each body
+        if gravity_field:
+            draw_gravity_field(screen, body, focus_object, SCALE_DIST, gravity_multiplier=10)
 
         if FULL_ORBITS and body.parent:
             draw_orbit(screen, body, focus_object, SCALE_DIST)
@@ -137,3 +196,10 @@ def draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, sc
 
         # Draw the planet
         pygame.draw.circle(screen, body.color, tuple(body_pos_pygame.astype(int)), body_radius)
+        
+        # Draw the planet's name if display_names is True
+        if display_names:
+            font = pygame.font.Font(None, 24)
+            text = font.render(body.name, True, (255, 255, 255))
+            text_rect = text.get_rect(center=(body_pos_pygame[0], body_pos_pygame[1] - body_radius - 10))
+            screen.blit(text, text_rect)
