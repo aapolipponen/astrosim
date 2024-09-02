@@ -266,5 +266,5 @@ STAR_COLORS = {
     "F": [255, 255, 242],  # Whitish yellow
     "G": [255, 244, 234],  # Yellow
     "K": [255, 210, 161],  # Orange
-    "M": [255, 204, 111],  # Reddish(Reddish? More like Reddit)-orange (Insert is upvote red or orange debate here)
+    "M": [255, 204, 111],  # Reddish-orange
 }
