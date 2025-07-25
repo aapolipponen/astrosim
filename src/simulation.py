@@ -3,150 +3,69 @@ from planet import bodies
 import numpy as np
 import integration
 
-class Node:
-    def __init__(self, center, size):
-        self.center = np.array(center)
-        self.mass = 0.0
-        self.size = size  # dimensions of the node
-        self.children = []  # children nodes
-        self.body = None  # if node is a leaf, it contains a body
-
-def build_tree(bodies, center, size):
-    node = Node(center, size)
-
-    # Filter bodies inside this node
-    bodies_inside = [body for body in bodies if inside(body.pos, node.center, node.size)]
-
-    if len(bodies_inside) == 0:
-        return None
-    elif len(bodies_inside) == 1:
-        node.body = bodies_inside[0]
-        node.mass = node.body.mass
-        node.center = node.body.pos
-    else:
-        node.children = []
-        for i in [-0.5, 0.5]:
-            for j in [-0.5, 0.5]:
-                for k in [-0.5, 0.5]:
-                    child_center = node.center + np.array([i, j, k]) * node.size * 0.5
-                    child = build_tree(bodies_inside, child_center, node.size * 0.5)
-                    if child:
-                        node.children.append(child)
-                        node.mass += child.mass
-
-        center_of_mass_numerator = np.array([0.0, 0.0, 0.0])
-        for child in node.children:
-            center_of_mass_numerator += child.center * child.mass
-        node.center = center_of_mass_numerator / node.mass if node.mass != 0 else node.center
-
-    return node
-
-def calculate_force_on_body(node, body, theta):
-    if not node:
-        return np.array([0.0, 0.0, 0.0])
-
-    r = node.center - body.pos
-    r_mag = np.linalg.norm(r)
-
-    if node.body:  # If leaf node
-        if node.body != body:  # Exclude self force
-            force_mag = G * body.mass * node.mass / r_mag**2
-            return force_mag * r / r_mag
-        return np.array([0.0, 0.0, 0.0])
-
-    # Check if far enough to treat as a single body
-    if node.size / r_mag < theta:
-        force_mag = G * body.mass * node.mass / r_mag**2
-        return force_mag * r / r_mag
-
-    # Otherwise, traverse children nodes
-    force = np.array([0.0, 0.0, 0.0])
-    for child in node.children:
-        force += calculate_force_on_body(child, body, theta)
-
-    return force
-
-def inside(position, center, size):
-    """
-    Check if a position is inside a cubic region defined by center and size.
-
-    Parameters:
-    - position: np.array, the position to check.
-    - center: np.array, the center of the cubic region.
-    - size: float, the size (edge length) of the cubic region.
-
-    Returns:
-    - bool, True if the position is inside the cubic region, False otherwise.
-    """
-
-    half_size = size / 2.0
-    lower_bound = center - half_size
-    upper_bound = center + half_size
-
-    return np.all(position >= lower_bound) and np.all(position <= upper_bound)
-
-def compute_root_size(bodies):
-    min_coords = np.min([body.pos for body in bodies], axis=0)
-    max_coords = np.max([body.pos for body in bodies], axis=0)
-
-    dimensions = max_coords - min_coords
-    max_dimension = np.max(dimensions)
-
-    padding = 0.1 * max_dimension  # 10% extra
-
-    return max_dimension + padding
-
-def calculate_net_force(target_body, post_newtonian_correction, barnes_hut):
-    if barnes_hut:
-        root = build_tree(bodies, np.array([0, 0, 0]), compute_root_size(bodies))
-        net_force = calculate_force_on_body(root, target_body, 1)
-    else:
-        net_force = np.array([0.0, 0.0, 0.0])
-        for body in bodies:
-            if body != target_body:
-                r = body.pos - target_body.pos
-                r_mag = np.linalg.norm(r)
-                # Avoid computation for extremely close objects (optional)
-                if r_mag < 1e-6:
-                    continue
-
-                force_mag = G * target_body.mass * body.mass / r_mag**2
-                # 1st post-Newtonian correction from GR
-                if post_newtonian_correction:
-                    correction_force_mag = (G**2 / C**2) * target_body.mass * body.mass * (target_body.mass + body.mass) / r_mag**3
-                    force_mag += correction_force_mag
-                force = force_mag * r / r_mag
-                net_force += force
-
-    # Here, you can still add any post-Newtonian correction if necessary
+def calculate_net_force(target_body):
+    net_force = np.array([0.0, 0.0, 0.0])
+    for body in bodies:
+        if body != target_body:
+            r = body.pos - target_body.pos
+            r_mag = np.linalg.norm(r)
+            if r_mag < 1e-6:
+                continue
+            force_mag = G * target_body.mass * body.mass / r_mag**2
+            force = force_mag * r / r_mag
+            net_force += force
     return net_force
+
+def bodies_to_arrays(bodies):
+    N = len(bodies)
+    pos = np.zeros((N, 3))
+    vel = np.zeros((N, 3))
+    mass = np.zeros(N)
+    for i, b in enumerate(bodies):
+        pos[i] = b.pos
+        vel[i] = b.vel
+        mass[i] = b.mass
+    return pos, vel, mass
+
+def arrays_to_bodies(pos, vel, bodies):
+    for i, b in enumerate(bodies):
+        b.pos = pos[i]
+        b.vel = vel[i]
+
+def run_simulation_array(timescale_seconds, method, FULL_ORBITS):
+    from constants import G
+    pos, vel, mass = bodies_to_arrays(bodies)
+    if method == 'euler':
+        integration.euler_step(pos, vel, mass, timescale_seconds, G)
+    elif method == 'verlet':
+        integration.verlet_step(pos, vel, mass, timescale_seconds, G)
+    elif method == 'leapfrog':
+        integration.leapfrog_step(pos, vel, mass, timescale_seconds, G)
+    elif method == 'rk4':
+        integration.rk4_step(pos, vel, mass, timescale_seconds, G)
+    else:
+        raise ValueError(f'Unknown integration method: {method}')
+    arrays_to_bodies(pos, vel, bodies)
+    if FULL_ORBITS:
+        for body in bodies:
+            if body.parent:
+                calculate_orbital_parameters(body)
 
 def get_integrator(method):
     integrators = {
-        # Simple and computationally efficient but can suffer from numerical instability. Often less accurate, especially for stiff systems or long simulations.
-        'euler': integration.euler_integration,
-        # Similar to Euler but takes the average of the initial and midpoint derivatives, improving accuracy. Still might not be suitable for stiff problems.
-        'midpoint': integration.midpoint_integration,
-        # A predictor-corrector method that's an improved version of the Euler method. It's more accurate but still simple and efficient.
-        'heun': integration.heun_integration,
-        # Fourth-order Runge-Kutta method. A well-balanced choice for many problems, offering good accuracy and stability. More computationally expensive than Euler but widely used in various fields.
-        'rk4': integration.rk4_integration,
-        # Commonly used in molecular dynamics simulations and other physical simulations. It conserves energy over long simulations but may be less accurate in terms of position.
-        'verlet': integration.verlet_integration,
-        # A time-reversible method often used in gravitational simulations. It conserves momentum and is more accurate than simple methods like Euler for oscillatory problems.
-        'leapfrog': integration.leapfrog_integration,
-
-        # Designed for integrating celestial bodies following Kepler's laws. It can be highly accurate for such applications, relying on specific orbital parameters like semi-major axis, eccentricity, etc.
-        #'orbital_elements': orbital_elements_integration
+        'euler': run_simulation_array,
+        'rk4': run_simulation_array,
+        'verlet': run_simulation_array,
+        'leapfrog': run_simulation_array,
     }
     return integrators.get(method)
 
-def run_simulation(timescale_seconds, method, post_newtonian_correction, barnes_hut, FULL_ORBITS):
+def run_simulation(timescale_seconds, method, FULL_ORBITS):
     integrator = get_integrator(method)
-    for body in bodies:
-        integrator(body, post_newtonian_correction, barnes_hut, calculate_net_force, timescale_seconds)
-        if body.parent and FULL_ORBITS:
-            calculate_orbital_parameters(body)
+    if integrator is not None:
+        integrator(timescale_seconds, method, FULL_ORBITS)
+    else:
+        raise ValueError(f'Unknown integration method: {method}')
 
 def calculate_orbital_position(body):
     # Get the position of the moon relative to its parent planet

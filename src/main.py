@@ -133,7 +133,7 @@ while running:
 
     if not paused:
         for body in bodies:
-            run_simulation(timestep_seconds, integration_method, post_newtonian_correction, barnes_hut, FULL_ORBITS)
+            run_simulation(timestep_seconds, integration_method, FULL_ORBITS)
         if debug:
             for body in bodies:
                 print(body.name, body.pos, body.vel)
