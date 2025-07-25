@@ -1,130 +1,110 @@
-def derivatives(body, post_newtonian_correction, barnes_hut, calculate_net_force, timescale_seconds):
-    net_force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    acc = net_force / body.mass  # Acceleration = net force / mass
-    return body.vel, acc
+import numpy as np
+from numba import njit, prange
 
-def euler_integration(body, post_newtonian_correction, barnes_hut, calculate_net_force, timescale_seconds):
-    vel_derivative, acc_derivative = derivatives(body, post_newtonian_correction, barnes_hut, calculate_net_force, timescale_seconds)
-    body.pos += vel_derivative * timescale_seconds
-    body.vel += acc_derivative * timescale_seconds
+@njit(parallel=True)
+def euler_step(pos, vel, mass, dt, G):
+    N = pos.shape[0]
+    acc = np.zeros((N, 3))
+    for i in prange(N):
+        for j in range(N):
+            if i != j:
+                r = pos[j] - pos[i]
+                r_mag = np.sqrt(np.sum(r**2)) + 1e-12
+                acc[i] += G * mass[j] * r / r_mag**3
+    vel += acc * dt
+    pos += vel * dt
 
-def midpoint_integration(body, post_newtonian_correction, barnes_hut, calculate_net_force, timescale_seconds):
+@njit(parallel=True)
+def verlet_step(pos, vel, mass, dt, G):
+    N = pos.shape[0]
+    acc = np.zeros((N, 3))
+    for i in prange(N):
+        for j in range(N):
+            if i != j:
+                r = pos[j] - pos[i]
+                r_mag = np.sqrt(np.sum(r**2)) + 1e-12
+                acc[i] += G * mass[j] * r / r_mag**3
+    pos_new = pos + vel * dt + 0.5 * acc * dt**2
+    acc_new = np.zeros((N, 3))
+    for i in prange(N):
+        for j in range(N):
+            if i != j:
+                r = pos_new[j] - pos_new[i]
+                r_mag = np.sqrt(np.sum(r**2)) + 1e-12
+                acc_new[i] += G * mass[j] * r / r_mag**3
+    vel += 0.5 * (acc + acc_new) * dt
+    pos[:] = pos_new
 
-    k1_vel, k1_acc = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    k1_pos = k1_vel * timescale_seconds
-    k1_acc *= timescale_seconds
+@njit(parallel=True)
+def leapfrog_step(pos, vel, mass, dt, G):
+    N = pos.shape[0]
+    acc = np.zeros((N, 3))
+    for i in prange(N):
+        for j in range(N):
+            if i != j:
+                r = pos[j] - pos[i]
+                r_mag = np.sqrt(np.sum(r**2)) + 1e-12
+                acc[i] += G * mass[j] * r / r_mag**3
+    vel += 0.5 * acc * dt
+    pos += vel * dt
+    acc_new = np.zeros((N, 3))
+    for i in prange(N):
+        for j in range(N):
+            if i != j:
+                r = pos[j] - pos[i]
+                r_mag = np.sqrt(np.sum(r**2)) + 1e-12
+                acc_new[i] += G * mass[j] * r / r_mag**3
+    vel += 0.5 * acc_new * dt
 
-    # temporary update to midpoint state
-    body.pos += 0.5 * k1_pos
-    body.vel += 0.5 * k1_acc
+@njit(parallel=True)
+def rk4_step(pos, vel, mass, dt, G):
+    N = pos.shape[0]
+    k1_vel = np.copy(vel)
+    k1_acc = np.zeros((N, 3))
+    for i in prange(N):
+        for j in range(N):
+            if i != j:
+                r = pos[j] - pos[i]
+                r_mag = np.sqrt(np.sum(r**2)) + 1e-12
+                k1_acc[i] += G * mass[j] * r / r_mag**3
+    k1_pos = k1_vel * dt
+    k1_acc_dt = k1_acc * dt
 
-    k2_vel, k2_acc = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    k2_pos = k2_vel * timescale_seconds
-    k2_acc *= timescale_seconds
+    k2_vel = vel + 0.5 * k1_acc_dt
+    k2_pos = pos + 0.5 * k1_pos
+    k2_acc = np.zeros((N, 3))
+    for i in prange(N):
+        for j in range(N):
+            if i != j:
+                r = k2_pos[j] - k2_pos[i]
+                r_mag = np.sqrt(np.sum(r**2)) + 1e-12
+                k2_acc[i] += G * mass[j] * r / r_mag**3
+    k2_pos = k2_vel * dt
+    k2_acc_dt = k2_acc * dt
 
-    # Roll back the temporary update
-    body.pos -= 0.5 * k1_pos
-    body.vel -= 0.5 * k1_acc
+    k3_vel = vel + 0.5 * k2_acc_dt
+    k3_pos = pos + 0.5 * k2_pos
+    k3_acc = np.zeros((N, 3))
+    for i in prange(N):
+        for j in range(N):
+            if i != j:
+                r = k3_pos[j] - k3_pos[i]
+                r_mag = np.sqrt(np.sum(r**2)) + 1e-12
+                k3_acc[i] += G * mass[j] * r / r_mag**3
+    k3_pos = k3_vel * dt
+    k3_acc_dt = k3_acc * dt
 
-    # Do the actual update
-    body.pos += k2_pos
-    body.vel += k2_acc
+    k4_vel = vel + k3_acc_dt
+    k4_pos = pos + k3_pos
+    k4_acc = np.zeros((N, 3))
+    for i in prange(N):
+        for j in range(N):
+            if i != j:
+                r = k4_pos[j] - k4_pos[i]
+                r_mag = np.sqrt(np.sum(r**2)) + 1e-12
+                k4_acc[i] += G * mass[j] * r / r_mag**3
+    k4_pos = k4_vel * dt
+    k4_acc_dt = k4_acc * dt
 
-def heun_integration(body, post_newtonian_correction, barnes_hut, calculate_net_force, timescale_seconds):
-    k1_vel, k1_acc = derivatives(body, post_newtonian_correction, barnes_hut)
-    k1_pos = k1_vel * timescale_seconds
-    k1_acc *= timescale_seconds
-
-    # temporary update to predict the end state
-    body.pos += k1_pos
-    body.vel += k1_acc
-
-    k2_vel, k2_acc = derivatives(body, post_newtonian_correction, barnes_hut)
-    k2_pos = k2_vel * timescale_seconds
-    k2_acc *= timescale_seconds
-
-    # Roll back the temporary update
-    body.pos -= k1_pos
-    body.vel -= k1_acc
-
-    # Do the actual update with the average of the initial and predicted end state
-    body.pos += 0.5 * (k1_pos + k2_pos)
-    body.vel += 0.5 * (k1_acc + k2_acc)
-
-def rk4_integration(body, post_newtonian_correction, barnes_hut, calculate_net_force, timescale_seconds):
-    pos_initial = body.pos.copy()
-    vel_initial = body.vel.copy()
-
-    force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    k1_acc = force / body.mass
-    k1_vel = body.vel
-
-    k1_pos = k1_vel * timescale_seconds
-    k1_acc *= timescale_seconds
-
-    body.pos = pos_initial + 0.5 * k1_pos
-    body.vel = vel_initial + 0.5 * k1_acc
-
-    force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    k2_acc = force / body.mass
-    k2_vel = body.vel
-
-    k2_pos = k2_vel * timescale_seconds
-    k2_acc *= timescale_seconds
-
-    body.pos = pos_initial + 0.5 * k2_pos
-    body.vel = vel_initial + 0.5 * k2_acc
-
-    force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    k3_acc = force / body.mass  # Convert force to acceleration
-    k3_vel = body.vel  # Use the current velocity of the body
-
-    k3_pos = k3_vel * timescale_seconds
-    k3_acc *= timescale_seconds
-
-    body.pos = pos_initial + k3_pos
-    body.vel = vel_initial + k3_acc
-
-    force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    k4_acc = force / body.mass  # Convert force to acceleration
-    k4_vel = body.vel  # Use the current velocity of the body
-
-    k4_pos = k4_vel * timescale_seconds
-    k4_acc *= timescale_seconds
-
-    # return body's position and velocity to the initial values before applying the final update
-    body.pos = pos_initial
-    body.vel = vel_initial
-
-    body.pos += (k1_pos + 2 * k2_pos + 2 * k3_pos + k4_pos) / 6
-    body.vel += (k1_acc + 2 * k2_acc + 2 * k3_acc + k4_acc) / 6
-
-def verlet_integration(body, post_newtonian_correction, barnes_hut, calculate_net_force, timescale_seconds):
-    # Compute current acceleration
-    net_force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    acceleration = net_force / body.mass
-
-    # Compute new position using current velocity and acceleration
-    new_pos = body.pos + body.vel * timescale_seconds + 0.5 * acceleration * timescale_seconds**2
-
-    # Compute new acceleration based on new position
-    body.pos = new_pos
-    new_net_force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    new_acceleration = new_net_force / body.mass
-
-    # Compute new velocity using average acceleration
-    body.vel += 0.5 * (acceleration + new_acceleration) * timescale_seconds
-
-def leapfrog_integration(body, post_newtonian_correction, barnes_hut, calculate_net_force, timescale_seconds):
-    # Half-step velocity update
-    net_force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    acceleration = net_force / body.mass
-    body.vel += 0.5 * acceleration * timescale_seconds
-
-    # Full-step position update
-    body.pos += body.vel * timescale_seconds
-
-    # Second half-step velocity update
-    net_force = calculate_net_force(body, post_newtonian_correction, barnes_hut)
-    acceleration = net_force / body.mass
-    body.vel += 0.5 * acceleration * timescale_seconds
+    pos += (k1_pos + 2 * k2_pos + 2 * k3_pos + k4_pos) / 6
+    vel += (k1_acc_dt + 2 * k2_acc_dt + 2 * k3_acc_dt + k4_acc_dt) / 6
