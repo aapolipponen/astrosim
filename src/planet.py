@@ -250,8 +250,33 @@ triton = body(
     id=902,
 )
 
+Voyager1 = body(
+    name="Voyager 1",
+    pos=[150 * AU, 0.0, 0.0],  # Approx distance from Sun in meters
+    mass=721.9,  # kg
+    radius=3.5,  # m, approximate
+    color=[255, 255, 255],  # White
+    type="probe",
+    parent=Sun,
+    velocity=[0.0, 0.0, 0.0],  # Placeholder, will update with Horizons data
+    id=-31,  # NAIF ID for Voyager 1
+)
+
+Voyager2 = body(
+    name="Voyager 2",
+    pos=[125 * AU, 0.0, 0.0],  # Approx distance from Sun in meters
+    mass=721.9,  # kg
+    radius=3.5,  # m, approximate
+    color=[255, 255, 255],  # White
+    type="probe",
+    parent=Sun,
+    velocity=[0.0, 0.0, 0.0],  # Placeholder, will update with Horizons data
+    id=-32,  # NAIF ID for Voyager 2
+)
+
 #bodies = [Sun, Earth]
 #bodies = [Sun, Earth, Mars]
 bodies = [Sun, Earth, Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune]
 #bodies.extend([Moon])
 #bodies.extend([io, europa, ganymede, callisto, dione, rhea, tethys, triton])
+bodies.extend([Voyager1, Voyager2])
