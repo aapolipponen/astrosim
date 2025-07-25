@@ -225,7 +225,11 @@ def calculate_orbital_parameters(body):
     
     # This will give us both the eccentricity vector and set the eccentricity attribute of the body.
     e_vector = calculate_eccentricity(body)
-    
+
+    # Skip further orbital calculations for non-elliptical (e>=1) or detached bodies like probes/escape trajectories.
+    if body.parent is None or body.eccentricity is None or body.eccentricity >= 1:
+        return
+ 
     # Use the previously computed e_vector here
     calculate_true_anomaly(body, e_vector)
     calculate_argument_of_periapsis(body, h, e_vector)

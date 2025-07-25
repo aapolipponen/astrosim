@@ -79,16 +79,10 @@ def zoom(SCALE_DIST, ZOOM_FACTOR, direction):
 def change_focus(bodies, SCALE_DIST, focus_object):
     pos = pygame.mouse.get_pos()
 
-    # Define the order of search: stars, planets, moons, others
-    body_types = ['star', 'planet', 'moon', None]
-    
-    for body_type in body_types:
-        relevant_bodies = [body for body in bodies if body.type == body_type]
-        closest_body = find_closest_body(pos, relevant_bodies, SCALE_DIST, focus_object)
+    closest_body = find_closest_body(pos, bodies, SCALE_DIST, focus_object)
         
-        if closest_body is not None and closest_body != focus_object:
-            focus_object = closest_body
-            clear_body_trails()
-            break
+    if closest_body is not None and closest_body != focus_object:
+        focus_object = closest_body
+        clear_body_trails()
 
     return focus_object
