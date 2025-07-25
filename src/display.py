@@ -103,18 +103,54 @@ def draw_orbit(screen, body, focus_object, SCALE_DIST):
     theta = np.linspace(0, 2 * np.pi, 1000)
     a = body.semi_major_axis
     e = body.eccentricity
+    if a == 0:
+        return  # Skip bodies without computed orbital parameters yet
+
     r = a * (1 - e**2) / (1 + e * np.cos(theta))
+
+    # Base ellipse (periapsis along +x direction)
     x = r * np.cos(theta)
     y = r * np.sin(theta)
-    
+
+    # -------------------------------------------------------------
+    # Determine orientation of the ellipse in the inertial frame.
+    # Instead of relying solely on argument_of_periapsis (which may
+    # be referenced to the ascending node), compute the angle of the
+    # eccentricity vector projected onto the XY-plane. The
+    # eccentricity vector points towards periapsis, so its azimuth
+    # directly gives the required rotation.
+    # -------------------------------------------------------------
+    try:
+        # Current position and velocity relative to parent (3-D)
+        rel_pos = body.pos - body.parent.pos
+        rel_vel = body.vel - body.parent.vel
+
+        # Specific angular momentum
+        h_vec = np.cross(rel_pos, rel_vel)
+        mu = G * body.parent.mass
+        e_vec = (np.cross(rel_vel, h_vec) - mu * rel_pos / np.linalg.norm(rel_pos)) / mu
+        # Store for debugging if desired
+        body.e_vector = e_vec
+
+        # In-plane projection (XY)
+        omega = np.arctan2(e_vec[1], e_vec[0])
+    except Exception:
+        omega = getattr(body, "argument_of_periapsis", 0)
+
+    cos_om = np.cos(omega)
+    sin_om = np.sin(omega)
+    x_rot = x * cos_om - y * sin_om
+    y_rot = x * sin_om + y * cos_om
+ 
     parent_pos_scaled = (body.parent.pos[:2] - focus_object.pos[:2]) * SCALE_DIST
     focus_pos_pygame = (focus_pos_pygame + parent_pos_scaled).astype(int)
-    x_pygame = (x * SCALE_DIST + focus_pos_pygame[0]).astype(int)
-    y_pygame = (-y * SCALE_DIST + focus_pos_pygame[1]).astype(int)
-    
+    x_pygame = (x_rot * SCALE_DIST + focus_pos_pygame[0]).astype(int)
+    y_pygame = (y_rot * SCALE_DIST + focus_pos_pygame[1]).astype(int)
+ 
     for i in range(1, len(x_pygame)):
         pygame.draw.line(screen, half_rgb(body.color), (x_pygame[i-1], y_pygame[i-1]), (x_pygame[i], y_pygame[i]))
-    
+ 
+    # Draw periapsis (closest point) and apoapsis (farthest point)
     pygame.draw.circle(screen, (255, 0, 0), (x_pygame[np.argmin(r)], y_pygame[np.argmin(r)]), 1)
     pygame.draw.circle(screen, (255, 0, 255), (x_pygame[np.argmax(r)], y_pygame[np.argmax(r)]), 1)
                                 

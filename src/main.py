@@ -28,8 +28,8 @@ post_newtonian_correction = False
 barnes_hut = False
 
 fade_trails = False
-draw_trail_for_empty = True
-FULL_ORBITS = False
+draw_trail_for_empty = False
+FULL_ORBITS = True
 display_names = True
 
 timestep_seconds = HOUR / 8 # Define the initial timestep value in seconds
