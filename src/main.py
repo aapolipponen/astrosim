@@ -13,7 +13,7 @@ import cProfile
 import threading
 import os
 
-focus_object = Voyager1
+focus_object = Sun
 
 debug = False
 debug_2 = True
