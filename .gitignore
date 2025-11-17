@@ -118,3 +118,4 @@ dmypy.json
 .pyre/
 
 planet_cache.json
+.starconsole_history
