@@ -18,7 +18,7 @@ focus_object = Sun
 debug = False
 debug_2 = True
 profile_simulation = False
-starconsole = False
+starconsole = True  # Enable console by default
 
 integration_method = 'rk4'
 
@@ -28,15 +28,17 @@ post_newtonian_correction = False
 barnes_hut = False
 
 fade_trails = False
-draw_trail_for_empty = False
-FULL_ORBITS = True
+draw_trail_for_empty = True
+FULL_ORBITS = False
 display_names = True
+gravity_field = False  # Gravity field visualization
 
 timestep_seconds = HOUR / 8 # Define the initial timestep value in seconds
 SCALE_DIST = 5e-10 # Calculate scaling factors for size and distance
 ZOOM_SPEED = 1.2  # Adjust this value to increase/decrease the zoom speed
 screen_width = 1920
 screen_height = 1080
+gravity_enabled = True  # Default gravity state
 
 if get_real_parameters:
     from query import get_body_parameters
@@ -71,18 +73,58 @@ def draw_button(screen, button_rect, button_color):
 if profile_simulation:
     def profile(profile_x_times):
         for i in range(profile_x_times):
-            run_simulation(timestep_seconds, integration_method, post_newtonian_correction)
+            run_simulation(timestep_seconds, integration_method, FULL_ORBITS, gravity_enabled)
             profile_x_times-=1
 
     cProfile.run('profile(500)')
     exit()
 
+# Create a context dictionary that will be updated with simulation state
+sim_context = {
+    'bodies': bodies,
+    'timestep_seconds': timestep_seconds,
+    'SCALE_DIST': SCALE_DIST,
+    'focus_object': focus_object,
+    'paused': False,
+    'running': True,
+    'gravity_enabled': gravity_enabled,
+    'integration_method': integration_method,
+    'FULL_ORBITS': FULL_ORBITS,
+    'display_names': display_names,
+    'fade_trails': fade_trails,
+    'draw_trail_for_empty': draw_trail_for_empty,
+    'gravity_field': gravity_field,
+    'Sun': Sun,
+    'Earth': Earth,
+    'Mercury': Mercury,
+    'Venus': Venus,
+    'Mars': Mars,
+    'Jupiter': Jupiter,
+    'Saturn': Saturn,
+    'Uranus': Uranus,
+    'Neptune': Neptune,
+    'Moon': Moon,
+    'Voyager1': Voyager1,
+    'Voyager2': Voyager2,
+    # Add utility functions
+    'change_timestep': change_timestep,
+    'zoom': zoom,
+    'change_focus': change_focus,
+    'clear_body_trails': clear_body_trails,
+    # Add common imports for convenience
+    'np': np,
+    'numpy': np,
+    'pygame': pygame,
+}
+
 if starconsole:
     def start_repl():
-        custom_repl(locals())
+        # Update context with current locals
+        sim_context.update(locals())
+        custom_repl(sim_context)
         
     # Start the REPL on a separate thread
-    repl_thread = threading.Thread(target=start_repl)
+    repl_thread = threading.Thread(target=start_repl, daemon=True)
     repl_thread.start()
 
 # Main simulation loop
@@ -130,16 +172,66 @@ while running:
                 
                 if debug_2:
                     print("Took screnshot")
+            # Zoom controls with keyboard
+            elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS or event.key == pygame.K_KP_PLUS:
+                # Zoom in: +, =, or numpad +
+                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'up')
+            elif event.key == pygame.K_MINUS or event.key == pygame.K_KP_MINUS:
+                # Zoom out: - or numpad -
+                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'down')
+            elif event.key == pygame.K_i:
+                # Zoom in: i key
+                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'up')
+            elif event.key == pygame.K_o:
+                # Zoom out: o key
+                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'down')
+            elif event.key == pygame.K_PAGEUP:
+                # Zoom in: Page Up
+                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'up')
+            elif event.key == pygame.K_PAGEDOWN:
+                # Zoom out: Page Down
+                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'down')
 
+    # Sync with console: read console changes first, then update context
+    if starconsole:
+        # Read console-modified values first (before overwriting)
+        timestep_seconds = sim_context.get('timestep_seconds', timestep_seconds)
+        SCALE_DIST = sim_context.get('SCALE_DIST', SCALE_DIST)
+        focus_object = sim_context.get('focus_object', focus_object)
+        paused = sim_context.get('paused', paused)
+        running = sim_context.get('running', running)
+        gravity_enabled = sim_context.get('gravity_enabled', gravity_enabled)
+        FULL_ORBITS = sim_context.get('FULL_ORBITS', FULL_ORBITS)
+        fade_trails = sim_context.get('fade_trails', fade_trails)
+        draw_trail_for_empty = sim_context.get('draw_trail_for_empty', draw_trail_for_empty)
+        display_names = sim_context.get('display_names', display_names)
+        gravity_field = sim_context.get('gravity_field', gravity_field)
+        
+        # Now update context with current simulation state (for console to read)
+        sim_context.update({
+            'bodies': bodies,
+            'timestep_seconds': timestep_seconds,
+            'SCALE_DIST': SCALE_DIST,
+            'focus_object': focus_object,
+            'paused': paused,
+            'running': running,
+            'gravity_enabled': gravity_enabled,
+            'FULL_ORBITS': FULL_ORBITS,
+            'fade_trails': fade_trails,
+            'draw_trail_for_empty': draw_trail_for_empty,
+            'display_names': display_names,
+            'gravity_field': gravity_field,
+        })
+    
     if not paused:
         for body in bodies:
-            run_simulation(timestep_seconds, integration_method, FULL_ORBITS)
+            run_simulation(timestep_seconds, integration_method, FULL_ORBITS, gravity_enabled)
         if debug:
             for body in bodies:
                 print(body.name, body.pos, body.vel)
 
     # Draw everything
-    draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen, fade_trails, display_names)
+    draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen, fade_trails, display_names, gravity_field)
     display_time(timestep_seconds, screen, paused)
     
     """# Draw the button

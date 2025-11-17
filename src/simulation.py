@@ -32,17 +32,19 @@ def arrays_to_bodies(pos, vel, bodies):
         b.pos = pos[i]
         b.vel = vel[i]
 
-def run_simulation_array(timescale_seconds, method, FULL_ORBITS):
+def run_simulation_array(timescale_seconds, method, FULL_ORBITS, gravity_enabled=True):
     from constants import G
+    # Use G=0 if gravity is disabled, otherwise use normal G
+    effective_G = G if gravity_enabled else 0.0
     pos, vel, mass = bodies_to_arrays(bodies)
     if method == 'euler':
-        integration.euler_step(pos, vel, mass, timescale_seconds, G)
+        integration.euler_step(pos, vel, mass, timescale_seconds, effective_G)
     elif method == 'verlet':
-        integration.verlet_step(pos, vel, mass, timescale_seconds, G)
+        integration.verlet_step(pos, vel, mass, timescale_seconds, effective_G)
     elif method == 'leapfrog':
-        integration.leapfrog_step(pos, vel, mass, timescale_seconds, G)
+        integration.leapfrog_step(pos, vel, mass, timescale_seconds, effective_G)
     elif method == 'rk4':
-        integration.rk4_step(pos, vel, mass, timescale_seconds, G)
+        integration.rk4_step(pos, vel, mass, timescale_seconds, effective_G)
     else:
         raise ValueError(f'Unknown integration method: {method}')
     arrays_to_bodies(pos, vel, bodies)
@@ -60,10 +62,10 @@ def get_integrator(method):
     }
     return integrators.get(method)
 
-def run_simulation(timescale_seconds, method, FULL_ORBITS):
+def run_simulation(timescale_seconds, method, FULL_ORBITS, gravity_enabled=True):
     integrator = get_integrator(method)
     if integrator is not None:
-        integrator(timescale_seconds, method, FULL_ORBITS)
+        integrator(timescale_seconds, method, FULL_ORBITS, gravity_enabled)
     else:
         raise ValueError(f'Unknown integration method: {method}')
 
