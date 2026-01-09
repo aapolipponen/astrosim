@@ -45,6 +45,10 @@ def run_simulation_array(timescale_seconds, method, FULL_ORBITS, gravity_enabled
         integration.leapfrog_step(pos, vel, mass, timescale_seconds, effective_G)
     elif method == 'rk4':
         integration.rk4_step(pos, vel, mass, timescale_seconds, effective_G)
+    elif method == 'rk6':
+        integration.rk6_step(pos, vel, mass, timescale_seconds, effective_G)
+    elif method == 'yoshida4':
+        integration.yoshida4_step(pos, vel, mass, timescale_seconds, effective_G)
     else:
         raise ValueError(f'Unknown integration method: {method}')
     arrays_to_bodies(pos, vel, bodies)
@@ -57,6 +61,8 @@ def get_integrator(method):
     integrators = {
         'euler': run_simulation_array,
         'rk4': run_simulation_array,
+        'rk6': run_simulation_array,
+        'yoshida4': run_simulation_array,
         'verlet': run_simulation_array,
         'leapfrog': run_simulation_array,
     }

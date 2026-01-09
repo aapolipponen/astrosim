@@ -1,248 +1,197 @@
 import pygame
 import numpy as np
-#from load_scenario import load_scenario
+import threading
+import os
+import time
+
 from planet import *
 from constants import YEAR, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND
 from simulation import run_simulation
-from query import get_body_parameters
 from display import draw_objects, display_time, init_display, clear_body_trails
-#from request import get_body_parameters
-from utilities import is_mouse_over_body, change_timestep, zoom, change_focus
+from utilities import zoom, change_focus
 from starconsole import custom_repl
-import cProfile
-import threading
-import os
 
+# Config
 focus_object = Sun
-
-debug = False
-debug_2 = True
-profile_simulation = False
-starconsole = True  # Enable console by default
-
-integration_method = 'rk4'
-
-get_real_parameters = True # Get real time body positions with 1 minute accuracy positions for objects from the Nasa Horizons API
-
-post_newtonian_correction = False
-barnes_hut = False
-
+integration_method = "leapfrog"
+gravity_enabled = True
+FULL_ORBITS = True
+display_names = True
+gravity_field = True
 fade_trails = False
 draw_trail_for_empty = True
-FULL_ORBITS = False
-display_names = True
-gravity_field = False  # Gravity field visualization
 
-timestep_seconds = HOUR / 8 # Define the initial timestep value in seconds
-SCALE_DIST = 5e-10 # Calculate scaling factors for size and distance
-ZOOM_SPEED = 1.2  # Adjust this value to increase/decrease the zoom speed
+# Physics
+dt_phys = 300.0 # Fixed physics timestep (seconds)
+steps_per_frame = 1
+
+adaptive_physics = True
+
+# PID / CPU budget (seconds)
+TARGET_PHYSICS_TIME = 0.004
+MAX_PHYSICS_TIME = 0.006
+
+MIN_STEPS = 1
+MAX_STEPS = 2_000_000
+MIN_DT = 1.0
+MAX_DT = DAY
+
+# Rendering
+SCALE_DIST = 5e-10
+ZOOM_SPEED = 1.2
 screen_width = 1920
 screen_height = 1080
-gravity_enabled = True  # Default gravity state
 
-if get_real_parameters:
-    from query import get_body_parameters
+# Tools
+starconsole = True
+debug = False
 
-    for body in bodies:
-        get_body_parameters(body)
-        if debug:
-            print(f"Updated {body.name}: Position = {body.pos}, Velocity = {body.vel}")
-
-if debug:
-    for body in bodies:
-        print(body.name, body.pos, body.vel)
-
+# Initialization
 screen = init_display(screen_width, screen_height)
-
 clear_body_trails()
 
-hovered_body_name = None
-mouse_pos = pygame.mouse.get_pos()  # get the current mouse position
+paused = False
+running = True
 
-"""# Button properties
-button_color = (255, 0, 0)  # Red color
-button_hover_color = (200, 0, 0)  # Darker red when hovered
-button_rect = pygame.Rect(10, 10, 100, 50)  # Button rectangle
-
-def draw_button(screen, button_rect, button_color):
-    pygame.draw.rect(screen, button_color, button_rect)
-    font = pygame.font.Font(None, 36)
-    text_surface = font.render("POISTA AURINKO", True, (255, 255, 255))  # White text
-    screen.blit(text_surface, (button_rect.x + 10, button_rect.y + 10))"""
-
-if profile_simulation:
-    def profile(profile_x_times):
-        for i in range(profile_x_times):
-            run_simulation(timestep_seconds, integration_method, FULL_ORBITS, gravity_enabled)
-            profile_x_times-=1
-
-    cProfile.run('profile(500)')
-    exit()
-
-# Create a context dictionary that will be updated with simulation state
+# Starconsole context
 sim_context = {
     'bodies': bodies,
-    'timestep_seconds': timestep_seconds,
+    'dt_phys': dt_phys,
+    'steps_per_frame': steps_per_frame,
+    'adaptive_physics': adaptive_physics,
+    'integration_method': integration_method,
+    'gravity_enabled': gravity_enabled,
     'SCALE_DIST': SCALE_DIST,
     'focus_object': focus_object,
-    'paused': False,
-    'running': True,
-    'gravity_enabled': gravity_enabled,
-    'integration_method': integration_method,
+    'paused': paused,
+    'running': running,
     'FULL_ORBITS': FULL_ORBITS,
     'display_names': display_names,
-    'fade_trails': fade_trails,
-    'draw_trail_for_empty': draw_trail_for_empty,
     'gravity_field': gravity_field,
-    'Sun': Sun,
-    'Earth': Earth,
-    'Mercury': Mercury,
-    'Venus': Venus,
-    'Mars': Mars,
-    'Jupiter': Jupiter,
-    'Saturn': Saturn,
-    'Uranus': Uranus,
-    'Neptune': Neptune,
-    'Moon': Moon,
-    'Voyager1': Voyager1,
-    'Voyager2': Voyager2,
-    # Add utility functions
-    'change_timestep': change_timestep,
-    'zoom': zoom,
-    'change_focus': change_focus,
-    'clear_body_trails': clear_body_trails,
-    # Add common imports for convenience
     'np': np,
-    'numpy': np,
     'pygame': pygame,
 }
 
 if starconsole:
     def start_repl():
-        # Update context with current locals
-        sim_context.update(locals())
         custom_repl(sim_context)
-        
-    # Start the REPL on a separate thread
-    repl_thread = threading.Thread(target=start_repl, daemon=True)
-    repl_thread.start()
 
-# Main simulation loop
-running = True
-paused = False
+    threading.Thread(target=start_repl, daemon=True).start()
+
+# Main loop
+clock = pygame.time.Clock()
+
 while running:
+    user_changed = set()
+
+    # Events
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+            user_changed.add('running')
+
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            """if button_rect.collidepoint(event.pos):
-                bodies.remove(aurinko)"""
-            if pygame.key.get_pressed()[pygame.K_LSHIFT] or pygame.key.get_pressed()[pygame.K_RSHIFT] or pygame.key.get_mods() & pygame.KMOD_CTRL:  # shift is pressed
-                fine_adjust_enabled = pygame.key.get_mods() & pygame.KMOD_CTRL
-                if event.button == 4:  # scroll up
-                    timestep_seconds = change_timestep(timestep_seconds, 'up', fine_adjust_enabled, debug, integration_method)
-                elif event.button == 5:  # scroll down
-                    timestep_seconds = change_timestep(timestep_seconds, 'down', fine_adjust_enabled, debug, integration_method)
-            elif event.button == 4:  # scroll up
+            mods = pygame.key.get_mods()
+
+            # Manual time controls
+            if not adaptive_physics:
+
+                # steps_per_frame
+                if mods & pygame.KMOD_SHIFT and not mods & pygame.KMOD_CTRL:
+                    if event.button == 4:
+                        steps_per_frame = min(steps_per_frame * 2, MAX_STEPS)
+                    elif event.button == 5:
+                        steps_per_frame = max(MIN_STEPS, steps_per_frame // 2)
+                    user_changed.add('steps_per_frame')
+
+                # dt_phys
+                elif mods & pygame.KMOD_CTRL:
+                    factor = 1.05 if mods & pygame.KMOD_SHIFT else 1.25
+                    if event.button == 4:
+                        dt_phys = min(MAX_DT, dt_phys * factor)
+                    elif event.button == 5:
+                        dt_phys = max(MIN_DT, dt_phys / factor)
+                    user_changed.add('dt_phys')
+
+            # Zoom
+            elif event.button == 4:
                 SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'up')
-            elif event.button == 5:  # scroll down
+                user_changed.add('SCALE_DIST')
+            elif event.button == 5:
                 SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'down')
+                user_changed.add('SCALE_DIST')
+
+            # Focus
             elif event.button == 1:
                 focus_object = change_focus(bodies, SCALE_DIST, focus_object)
+                user_changed.add('focus_object')
+
         elif event.type == pygame.KEYDOWN:
-            # Space key pauses the game
             if event.key == pygame.K_SPACE:
-                paused = not paused  # Toggle paused state
+                paused = not paused
+                user_changed.add('paused')
+
             elif event.key == pygame.K_F12:
-                # Create a folder if it doesn't exist
-                if debug_2:
-                    print("Screenshot key pressed")
-                if not os.path.exists("screenshots"):
-                    os.mkdir("screenshots")
-                screenshot_folder = "screenshots"
-                screenshot_name = os.path.join(screenshot_folder, "screenshot.png")
+                os.makedirs("screenshots", exist_ok=True)
+                fname = f"screenshots/screenshot_{pygame.time.get_ticks()}.png"
+                pygame.image.save(screen, fname)
+                print(f"Saved {fname}")
 
-                if os.path.exists(screenshot_name):
-                    index = 1
-                    while os.path.exists(os.path.join(screenshot_folder, f"screenshot_{index}.png")):
-                        index += 1
-                    screenshot_name = os.path.join(screenshot_folder, f"screenshot_{index}.png")
-
-                pygame.image.save(screen, screenshot_name)
-                
-                if debug_2:
-                    print("Took screnshot")
-            # Zoom controls with keyboard
-            elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS or event.key == pygame.K_KP_PLUS:
-                # Zoom in: +, =, or numpad +
-                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'up')
-            elif event.key == pygame.K_MINUS or event.key == pygame.K_KP_MINUS:
-                # Zoom out: - or numpad -
-                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'down')
-            elif event.key == pygame.K_i:
-                # Zoom in: i key
-                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'up')
-            elif event.key == pygame.K_o:
-                # Zoom out: o key
-                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'down')
-            elif event.key == pygame.K_PAGEUP:
-                # Zoom in: Page Up
-                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'up')
-            elif event.key == pygame.K_PAGEDOWN:
-                # Zoom out: Page Down
-                SCALE_DIST = zoom(SCALE_DIST, ZOOM_SPEED, 'down')
-
-    # Sync with console: read console changes first, then update context
+    # Console sync
     if starconsole:
-        # Read console-modified values first (before overwriting)
-        timestep_seconds = sim_context.get('timestep_seconds', timestep_seconds)
-        SCALE_DIST = sim_context.get('SCALE_DIST', SCALE_DIST)
-        focus_object = sim_context.get('focus_object', focus_object)
-        paused = sim_context.get('paused', paused)
-        running = sim_context.get('running', running)
+        if 'dt_phys' not in user_changed:
+            dt_phys = sim_context.get('dt_phys', dt_phys)
+        if 'steps_per_frame' not in user_changed:
+            steps_per_frame = sim_context.get('steps_per_frame', steps_per_frame)
+        adaptive_physics = sim_context.get('adaptive_physics', adaptive_physics)
+        integration_method = sim_context.get('integration_method', integration_method)
         gravity_enabled = sim_context.get('gravity_enabled', gravity_enabled)
-        FULL_ORBITS = sim_context.get('FULL_ORBITS', FULL_ORBITS)
-        fade_trails = sim_context.get('fade_trails', fade_trails)
-        draw_trail_for_empty = sim_context.get('draw_trail_for_empty', draw_trail_for_empty)
-        display_names = sim_context.get('display_names', display_names)
-        gravity_field = sim_context.get('gravity_field', gravity_field)
-        
-        # Now update context with current simulation state (for console to read)
+
         sim_context.update({
-            'bodies': bodies,
-            'timestep_seconds': timestep_seconds,
-            'SCALE_DIST': SCALE_DIST,
-            'focus_object': focus_object,
+            'dt_phys': dt_phys,
+            'steps_per_frame': steps_per_frame,
+            'adaptive_physics': adaptive_physics,
             'paused': paused,
             'running': running,
-            'gravity_enabled': gravity_enabled,
-            'FULL_ORBITS': FULL_ORBITS,
-            'fade_trails': fade_trails,
-            'draw_trail_for_empty': draw_trail_for_empty,
-            'display_names': display_names,
-            'gravity_field': gravity_field,
         })
-    
-    if not paused:
-        for body in bodies:
-            run_simulation(timestep_seconds, integration_method, FULL_ORBITS, gravity_enabled)
-        if debug:
-            for body in bodies:
-                print(body.name, body.pos, body.vel)
 
-    # Draw everything
-    draw_objects(focus_object, SCALE_DIST, FULL_ORBITS, draw_trail_for_empty, screen, fade_trails, display_names, gravity_field)
-    display_time(timestep_seconds, screen, paused)
-    
-    """# Draw the button
-    mouse_pos = pygame.mouse.get_pos()
-    if button_rect.collidepoint(mouse_pos):
-        current_button_color = button_hover_color
-    else:
-        current_button_color = button_color
-    draw_button(screen, button_rect, current_button_color)"""
-    
+    # Physics
+    if not paused:
+        start = time.perf_counter()
+        steps_done = 0
+
+        while steps_done < steps_per_frame:
+            run_simulation(dt_phys, integration_method, FULL_ORBITS, gravity_enabled)
+            steps_done += 1
+
+            if adaptive_physics and time.perf_counter() - start > MAX_PHYSICS_TIME:
+                break
+
+        physics_time = time.perf_counter() - start
+
+        # Adaptive control
+        if adaptive_physics:
+            if physics_time > MAX_PHYSICS_TIME:
+                steps_per_frame = max(MIN_STEPS, int(steps_per_frame * 0.7))
+            elif physics_time < TARGET_PHYSICS_TIME:
+                steps_per_frame = min(MAX_STEPS, int(steps_per_frame * 1.1) + 1)
+
+    # Render
+    draw_objects(
+        focus_object,
+        SCALE_DIST,
+        FULL_ORBITS,
+        draw_trail_for_empty,
+        screen,
+        fade_trails,
+        display_names,
+        gravity_field
+    )
+
+    simulated_seconds = dt_phys * steps_per_frame
+    display_time(simulated_seconds, screen, paused)
+
     pygame.display.flip()
-    pygame.time.wait(10)
+    clock.tick(60)
 
 pygame.quit()
